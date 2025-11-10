@@ -38,22 +38,24 @@ def _summarise_player(player: dict, hand: dict, reveal_all: bool) -> str:
     lose = delta < -1e-6
     show_cards = win or reveal_all or hand.get("showdown", False)
     cards_text = _fmt_cards(hole_cards) if show_cards and hole_cards else CARD_BACK
+    pos = player.get("pos") or ""
+    pos_text = f" {pos}" if pos else ""
     if win:
         return (
-            f"Seat {seat_idx + 1}: {name} {player['pos']} showed {cards_text} and won {_fmt_amount(delta)} with {player.get('hand_text', 'unknown')} (finished {final_stack})"
+            f"Seat {seat_idx + 1}: {name}{pos_text} showed {cards_text} and won {_fmt_amount(delta)} with {player.get('hand_text', 'unknown')} (finished {final_stack})"
         )
     if not lose and not win:
         if show_cards and hole_cards:
             return (
-                f"Seat {seat_idx + 1}: {name} {player['pos']} showed {cards_text} and tied with {player.get('hand_text', 'unknown')} (finished {final_stack})"
+                f"Seat {seat_idx + 1}: {name}{pos_text} showed {cards_text} and tied with {player.get('hand_text', 'unknown')} (finished {final_stack})"
             )
-        return f"Seat {seat_idx + 1}: {name} {player['pos']} finished {final_stack}"
+        return f"Seat {seat_idx + 1}: {name}{pos_text} finished {final_stack}"
     if show_cards and hole_cards:
         return (
-            f"Seat {seat_idx + 1}: {name} {player['pos']} showed {cards_text} and lost {_fmt_amount(-delta)} with {player.get('hand_text', 'mucked')} (finished {final_stack})"
+            f"Seat {seat_idx + 1}: {name}{pos_text} showed {cards_text} and lost {_fmt_amount(-delta)} with {player.get('hand_text', 'mucked')} (finished {final_stack})"
         )
     return (
-        f"Seat {seat_idx + 1}: {name} {player['pos']} mucked and lost {_fmt_amount(-delta)} (finished {final_stack})"
+        f"Seat {seat_idx + 1}: {name}{pos_text} mucked and lost {_fmt_amount(-delta)} (finished {final_stack})"
     )
 
 
@@ -65,13 +67,16 @@ def print_hand(hand: dict, reveal_all: bool = False) -> str:
     bb = hand.get("blinds", {}).get("bb", 2.0)
     seed = hand.get("seed", "-")
     lines.append(f"PokerStars Hand #{seed}:  Hold'em No Limit ({_fmt_amount(sb)}/{_fmt_amount(bb)})")
-    lines.append("Table 'HeadsUp' 2-max")
+    n_players = len(hand.get("players", [])) or 2
+    lines.append(f"Table 'HeadsUp' {n_players}-max")
 
     for player in hand.get("players", []):
         seat = player["seat"]
         button_marker = " (button)" if seat == hand["button"] else ""
+        pos = player.get("pos") or ""
+        pos_text = f" {pos}" if pos else ""
         lines.append(
-            f"Seat {seat + 1}: Player{player['id']}{button_marker} ({player['pos']}) ({_fmt_amount(player['stack_start'])} in chips)"
+            f"Seat {seat + 1}: Player{player['id']}{button_marker}{pos_text} ({_fmt_amount(player['stack_start'])} in chips)"
         )
 
     lines.append("*** HOLE CARDS ***")

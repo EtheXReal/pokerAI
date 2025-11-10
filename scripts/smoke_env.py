@@ -3,8 +3,8 @@
 运行示例：
     python scripts/smoke_env.py --seed 42
 
-脚本会以随机策略打完 1 手牌，并打印每步街次、动作与底池。
-用于快速验证 env/engine 的状态推进与结算是否正常。
+脚本会以随机策略打完 1 手牌，并打印手牌回放。
+默认支持 2-5 人桌，用于快速验证 env/engine 的状态推进与结算是否正常。
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from env.engine import HeadsUpPokerEnv
 from utils.hand_history import print_hand
 
 
-def run_smoke(seed: int, reveal_all: bool) -> None:
+def run_smoke(seed: int, reveal_all: bool, n_players: int) -> None:
     rng = random.Random(seed)
-    env = HeadsUpPokerEnv()
+    env = HeadsUpPokerEnv(num_players=n_players)
     state, legal = env.reset(seed=seed)
 
     done = False
@@ -42,12 +42,15 @@ def run_smoke(seed: int, reveal_all: bool) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Random smoke test for Heads-Up poker env.")
+    parser = argparse.ArgumentParser(description="Random smoke test for poker environment.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
+    parser.add_argument("--players", type=int, default=2, help="Number of seated players (2-5).")
     parser.add_argument("--reveal-all", action="store_true", help="Reveal所有玩家底牌。")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_smoke(seed=args.seed, reveal_all=args.reveal_all)
+    if args.players < 2 or args.players > 5:
+        raise SystemExit("players 参数需在 2~5 之间。")
+    run_smoke(seed=args.seed, reveal_all=args.reveal_all, n_players=args.players)

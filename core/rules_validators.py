@@ -39,7 +39,13 @@ def validate_post_action(
     pending_response: bool,
     to_call_after: float,
 ) -> None:
-    if action in (ActionType.RAISE_33, ActionType.RAISE_66, ActionType.RAISE_POT) and plan_target_total is not None:
+    if action in (
+        ActionType.RAISE_33,
+        ActionType.RAISE_66,
+        ActionType.RAISE_POT,
+        ActionType.BET_CUSTOM,
+        ActionType.RAISE_CUSTOM,
+    ) and plan_target_total is not None:
         if plan_target_total + EPS < min_raise_to and plan_target_total + EPS < max_raise_to:
             raise RuleViolation("Raise did not meet minimum raise-to requirement.")
         if plan_added <= EPS:

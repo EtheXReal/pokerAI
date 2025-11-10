@@ -87,6 +87,28 @@ def test_r200_plan() -> None:
     print("r200 sizing OK")
 
 
+def test_manual_bet(seed: int) -> None:
+    env = HeadsUpPokerEnv()
+    env.reset(seed=seed)
+    env.step_command("bet", 4.0)
+    last_action = env.get_hand_record()["actions"][-1]
+    assert last_action["type"] in {"bet_custom", "raise_custom"}, f"Unexpected action type {last_action['type']}"
+    assert last_action["amount"] > 0.0
+    print("manual bet OK")
+
+
+def test_illegal_custom_raise(seed: int) -> None:
+    env = HeadsUpPokerEnv()
+    env.reset(seed=seed)
+    try:
+        env.step_command("bet", 0.5)
+    except RuntimeError as exc:
+        assert any(key in str(exc) for key in ("below_min_bet", "below_call")), f"Unexpected error: {exc}"
+    else:
+        raise AssertionError("Custom bet below big blind should fail")
+    print("illegal custom bet rejected")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify sizing rules for discrete raises.")
     parser.add_argument("--seed", type=int, default=42, help="Base seed for deterministic scenarios.")
@@ -99,6 +121,8 @@ def main() -> None:
     test_r200_vs_bet(args.seed)
     test_r100_plan()
     test_r200_plan()
+    test_manual_bet(args.seed)
+    test_illegal_custom_raise(args.seed)
     print("All sizing checks OK")
 
 

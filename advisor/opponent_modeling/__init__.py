@@ -21,6 +21,10 @@ from .models import PlayerType, ActionType, StreetType, PositionType, HandResult
 from .tracker import StatsTracker, ActionParser, create_tracker
 from .storage import StorageBackend, SQLiteStorage, create_storage
 from .classifier import PlayerClassifier, ClassificationResult, classify_player, get_player_type_name
+from .exploits import (
+    ExploitStrategy, StrategyLibrary, StrategyAdvice,
+    ActionContext, StreetStage, get_strategy
+)
 
 __all__ = [
     'OpponentStats',
@@ -43,6 +47,12 @@ __all__ = [
     'ClassificationResult',
     'classify_player',
     'get_player_type_name',
+    'ExploitStrategy',
+    'StrategyLibrary',
+    'StrategyAdvice',
+    'ActionContext',
+    'StreetStage',
+    'get_strategy',
 ]
 
 __version__ = '0.1.0'

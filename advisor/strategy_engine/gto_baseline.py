@@ -70,7 +70,9 @@ class GTOBaseline:
                         position: Position,
                         hand_strength: float,
                         action_history: List[str],
-                        effective_stack: float) -> Dict[str, float]:
+                        effective_stack: float,
+                        equity: float = None,
+                        opponent_type: str = None) -> Dict[str, float]:
         """
         翻前GTO策略
 
@@ -79,6 +81,8 @@ class GTOBaseline:
             hand_strength: 手牌强度 (0.0-1.0)
             action_history: 行动历史 ['open', '3bet', ...]
             effective_stack: 有效筹码 (BB)
+            equity: vs对手范围的equity (可选)
+            opponent_type: 对手类型 (可选)
 
         Returns:
             动作概率分布
@@ -93,7 +97,8 @@ class GTOBaseline:
 
         # 面对3-bet
         if action_history[-1] == '3bet':
-            return self._preflop_vs_3bet(position, hand_strength, effective_stack)
+            return self._preflop_vs_3bet(position, hand_strength, effective_stack,
+                                         equity=equity, opponent_type=opponent_type)
 
         # 面对4-bet
         if action_history[-1] == '4bet':
@@ -142,23 +147,56 @@ class GTOBaseline:
             # 弱牌：弃牌
             return {'fold': 1.0}
 
-    def _preflop_vs_3bet(self, position: Position, strength: float, stack: float) -> Dict[str, float]:
-        """面对3-bet的策略"""
-        # 4-bet门槛
-        four_bet_threshold = 0.92
+    def _preflop_vs_3bet(self, position: Position, strength: float, stack: float,
+                        equity: float = None, opponent_type: str = None) -> Dict[str, float]:
+        """
+        面对3-bet的策略
 
-        # 跟注门槛
-        call_threshold = 0.75
+        优先使用equity，其次使用strength
+        根据对手类型调整（LAG的3-bet范围宽，我们defend wider）
+        """
+        # ✅ 优先使用equity决策
+        if equity is not None and equity > 0:
+            # Equity-based决策（更准确）
+            # 典型pot odds vs 3-bet约为42-45%
+
+            if equity >= 0.65:  # 明显优势
+                return {'fold': 0.0, 'call': 0.4, '4bet': 0.6}
+            elif equity >= 0.55:  # 中等优势
+                return {'fold': 0.0, 'call': 0.75, '4bet': 0.25}
+            elif equity >= 0.48:  # 略有优势，超过pot odds
+                return {'fold': 0.0, 'call': 0.90, '4bet': 0.10}
+            elif equity >= 0.42:  # 接近pot odds (可以call)
+                return {'fold': 0.15, 'call': 0.80, '4bet': 0.05}
+            elif equity >= 0.35:  # 略低于pot odds
+                return {'fold': 0.60, 'call': 0.35, '4bet': 0.05}
+            else:  # 明显弱牌
+                return {'fold': 0.95, 'call': 0.05}
+
+        # ✅ 如果没有equity，使用strength（改进的阈值）
+        # 根据对手类型调整
+        if opponent_type == 'LAG' or opponent_type == 'MANIAC':
+            # vs LAG：他们3-bet范围宽，我们defend wider
+            four_bet_threshold = 0.88
+            call_threshold = 0.70
+        elif opponent_type == 'NIT' or opponent_type == 'WEAK_TIGHT':
+            # vs Nit：他们3-bet范围紧，我们defend tighter
+            four_bet_threshold = 0.94
+            call_threshold = 0.80
+        else:
+            # 默认 vs TAG/UNKNOWN
+            four_bet_threshold = 0.90
+            call_threshold = 0.75
 
         if strength >= four_bet_threshold:
             # 超强牌：4-bet
             return {'fold': 0.0, 'call': 0.3, '4bet': 0.7}
         elif strength >= call_threshold:
             # 强牌：主要跟注
-            return {'fold': 0.0, 'call': 0.9, '4bet': 0.1}
-        elif strength >= 0.65:
-            # 中等牌：混合弃牌和跟注
-            return {'fold': 0.6, 'call': 0.4}
+            return {'fold': 0.0, 'call': 0.90, '4bet': 0.10}
+        elif strength >= 0.60:  # ✅ 降低阈值（之前是0.65）
+            # 中等牌：少fold，多call
+            return {'fold': 0.30, 'call': 0.65, '4bet': 0.05}
         else:
             # 弱牌：弃牌
             return {'fold': 1.0}

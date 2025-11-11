@@ -30,6 +30,7 @@ from .decision import DecisionOutput, merge_decisions
 from .gto_baseline import GTOBaseline, GTOContext, Street, Position
 from .range_estimator import RangeEstimator, Action
 from .exploits import get_exploit_strategy
+from .hand_strength import calculate_preflop_hand_strength
 
 
 @dataclass
@@ -170,7 +171,8 @@ class ProLevelAdvisor:
             'opponent_type': game_state.opponent_type.name if game_state.opponent_type else 'Unknown',
             'board_texture': board_texture.wetness if board_texture else 'unknown',
             'position': 'IP' if game_state.is_in_position else 'OOP',
-            'pot_odds': gto_ctx.pot_size / (gto_ctx.pot_size + gto_ctx.bet_to_call) if gto_ctx.bet_to_call else 0,
+            # ✅ 修复pot odds公式
+            'pot_odds': gto_ctx.bet_to_call / (gto_ctx.pot_size + gto_ctx.bet_to_call) if gto_ctx.bet_to_call else 0,
             'spr': game_state.spr,
             'street': game_state.street,
             'strategy_weights': {
@@ -355,12 +357,16 @@ class ProLevelAdvisor:
         if game_state.street == 'preflop':
             # 翻前策略
             try:
-                hand_strength = 0.7  # 简化
+                # ✅ 计算真实hand strength
+                hand_strength = calculate_preflop_hand_strength(game_state.hero_hand)
+
                 action_dist = self.gto_baseline.preflop_strategy(
                     gto_ctx.position,
                     hand_strength,
                     game_state.action_history,
-                    game_state.effective_stack
+                    game_state.effective_stack,
+                    equity=gto_ctx.equity,  # ✅ 传入真实equity
+                    opponent_type=game_state.opponent_type.name if game_state.opponent_type else None
                 )
             except:
                 action_dist = {'fold': 0.3, 'call': 0.5, 'raise': 0.2}

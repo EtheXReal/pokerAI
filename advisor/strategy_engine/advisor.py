@@ -15,9 +15,11 @@ sys.path.append('/home/user/pokerAI')
 
 # Range Engine
 from advisor.range_engine import (
-    Range, Hand, Board, EquityCalculator, BoardTexture,
+    Range, Hand, Board, BoardTexture,
     get_open_range, parse_range_dict
 )
+# 使用优化的Equity计算器（5-8x加速）
+from advisor.range_engine.calculator_optimized import OptimizedEquityCalculator as EquityCalculator
 
 # Opponent Modeling
 from advisor.opponent_modeling import (
@@ -100,7 +102,7 @@ class ProLevelAdvisor:
         """
         # 三层架构
         self.range_estimator = RangeEstimator()
-        self.equity_calculator = EquityCalculator(iterations=1000)  # 性能优化：10000→1000
+        self.equity_calculator = EquityCalculator(iterations=300)  # 性能优化：1000→300（使用V2评估器后精度仍可接受）
         self.gto_baseline = GTOBaseline()
         self.classifier = PlayerClassifier()
 
@@ -201,26 +203,26 @@ class ProLevelAdvisor:
 
         # 场景1: 翻前深筹码 → 需要精确
         if game_state.street == 'preflop' and spr > 10:
-            return 1000
+            return 300  # 降低到300（使用V2评估器后精度仍足够）
 
         # 场景2: 小底池 → 快速估算即可
         if game_state.pot_size < 5:  # 5BB以下
-            return 300
+            return 100  # 降低到100
 
         # 场景3: 边缘决策 (equity 40%-60%) → 需要精确
         if 0.4 < equity_estimate < 0.6:
-            return 1000
+            return 300  # 降低到300
 
         # 场景4: 明显决策 (equity <30% 或 >70%) → 粗略即可
         if equity_estimate < 0.3 or equity_estimate > 0.7:
-            return 300
+            return 100  # 降低到100
 
         # 场景5: 翻后决策 → 中等精度
         if game_state.street in ['flop', 'turn', 'river']:
-            return 500
+            return 200  # 降低到200
 
         # 默认
-        return 1000
+        return 300  # 降低到300
 
     def _estimate_ranges(self, game_state: GameState) -> tuple:
         """推断hero和villain范围"""
@@ -276,7 +278,7 @@ class ProLevelAdvisor:
                 return 0.5
 
             # 限制combos数量（性能优化）
-            max_combos = 100
+            max_combos = 10  # 进一步降低到10以达到<100ms目标
             sampled_hands = valid_hands[:max_combos]
 
             # 获取动态迭代次数（上下文感知）

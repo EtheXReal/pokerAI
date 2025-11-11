@@ -104,6 +104,10 @@ class GTOBaseline:
         if action_history[-1] == '4bet':
             return self._preflop_vs_4bet(hand_strength, effective_stack)
 
+        # 面对limp (call)
+        if action_history[-1] == 'call':
+            return self._preflop_vs_limp(position, hand_strength, effective_stack)
+
         # 默认：保守策略
         return {'fold': 0.8, 'call': 0.2}
 
@@ -244,6 +248,49 @@ class GTOBaseline:
         else:
             # 其他：弃牌
             return {'fold': 1.0}
+
+    def _preflop_vs_limp(self, position: Position, strength: float, stack: float) -> Dict[str, float]:
+        """
+        面对limp (call)的策略
+
+        特别重要：BB位置面对limp时，强牌应该raise进行isolation
+
+        GTO原则：
+        1. 强牌(88+, ATs+, AQo+): 100% raise for value + isolation
+        2. 中等牌: Check back (免费看flop)
+        3. 弱牌: Check back (已投入1BB，pot odds好)
+        """
+        # BB位置特殊处理
+        if position == Position.BB:
+            # BB vs limp的raise阈值
+            # 88+ = 0.78+, ATs = 0.73, AQo = 0.72
+            if strength >= 0.72:
+                # 强牌：100% raise进行isolation
+                # TT (0.78), KK (0.88), AA (0.95), AK (0.85+), AQ (0.72+)
+                return {'fold': 0.0, 'call': 0.0, 'raise': 1.0}
+            else:
+                # 中等牌/弱牌：check (已投入1BB，pot odds优秀)
+                # BB只投入1BB，看flop只需再投0BB（免费）
+                # 所以几乎任何牌都应该check
+                return {'fold': 0.0, 'call': 1.0, 'raise': 0.0}
+
+        # SB位置面对limp
+        elif position == Position.SB:
+            # SB需要投0.5BB (pot=2.0BB)，pot odds = 25%
+            if strength >= 0.80:
+                # 强牌：raise进行isolation
+                return {'fold': 0.0, 'call': 0.2, 'raise': 0.8}
+            elif strength >= 0.35:
+                # 中等牌：主要limp，少量raise
+                return {'fold': 0.0, 'call': 0.85, 'raise': 0.15}
+            else:
+                # 弱牌：部分fold（虽然pot odds好，但位置差）
+                return {'fold': 0.6, 'call': 0.4}
+
+        # 其他位置（理论上不会有，因为只有BB/SB在limp后面行动）
+        else:
+            # 保守策略
+            return {'fold': 0.5, 'call': 0.5}
 
     # ===== 翻后GTO公式 =====
 

@@ -735,5 +735,5 @@ def run_full_test(num_hands: int = 10):
 
 
 if __name__ == '__main__':
-    run_full_test(num_hands=10)
+    run_full_test(num_hands=32)
     print('测试完成！')

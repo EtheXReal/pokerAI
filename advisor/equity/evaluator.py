@@ -270,8 +270,15 @@ class HandEvaluator:
         Returns:
             如果是顺子，返回最大牌的Rank；否则返回None
         """
+        # 获取所有牌面
+        ranks = [c.rank for c in cards]
+
+        # 顺子必须有5张不同rank的牌
+        if len(set(ranks)) != 5:
+            return None
+
         # 按牌面从大到小排序
-        ranks = sorted([c.rank for c in cards], reverse=True)
+        ranks = sorted(ranks, reverse=True)
 
         # 检查普通顺子 (5张连续)
         if ranks[0] - ranks[4] == 4:

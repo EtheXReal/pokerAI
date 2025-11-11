@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import unittest
-from advisor.equity import Range
+from advisor.range_engine import Range
 
 
 class TestRangeSetOperations(unittest.TestCase):

@@ -363,31 +363,3 @@ def get_4bet_range(position: str, vs_position: str) -> dict:
 
     # 默认返回保守4-bet
     return FOURBET_RANGES['utg_vs_btn_3bet']
-
-
-def parse_range_dict(range_dict: dict) -> 'Range':
-    """
-    将范围字典转换为Range对象
-
-    Args:
-        range_dict: 范围字典，如 {'pairs': ['77+'], 'suited': ['A9s+'], 'offsuit': ['AJo+']}
-
-    Returns:
-        Range对象
-
-    Example:
-        range_dict = get_open_range('BTN', 'normal')
-        btn_range = parse_range_dict(range_dict)
-    """
-    from .range import Range
-
-    # 合并所有手牌
-    all_hands = []
-    for category in ['pairs', 'suited', 'offsuit']:
-        if category in range_dict:
-            all_hands.extend(range_dict[category])
-
-    # 用逗号连接所有手牌
-    range_str = ','.join(all_hands)
-
-    return Range.from_string(range_str)

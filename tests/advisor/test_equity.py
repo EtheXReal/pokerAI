@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import unittest
 
-from advisor.equity import (
+from advisor.range_engine import (
     # Cards
     Rank, Suit, Card, Hand, Board,
     create_deck, validate_no_duplicates,

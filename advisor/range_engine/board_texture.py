@@ -13,31 +13,23 @@
 - 下注尺寸调整 (湿面小注保护，干面大注)
 - Bluff频率调整 (湿面多bluff outs)
 """
-from typing import List, Tuple
-from treys import Card
+from typing import List, Dict
 from collections import Counter
+from .cards import Card, Board
 
 
 class BoardTexture:
     """公共牌结构分析"""
 
-    RANK_ORDER = '23456789TJQKA'
-    RANK_VALUES = {r: i for i, r in enumerate(RANK_ORDER)}
-
-    def __init__(self, board: List[int]):
+    def __init__(self, board: Board):
         """
         初始化
 
         Args:
-            board: treys格式的公共牌 [Card, Card, Card] 或 更多
+            board: Board对象
         """
         self.board = board
-        self.ranks = [Card.get_rank_int(c) for c in board]
-        self.suits = [Card.get_suit_int(c) for c in board]
-
-        # 转换为字符表示
-        self.rank_chars = [self._rank_int_to_char(r) for r in self.ranks]
-        self.suit_chars = [self._suit_int_to_char(s) for s in self.suits]
+        self.cards = board.cards
 
         # 预计算特征
         self._compute_features()
@@ -62,22 +54,22 @@ class BoardTexture:
 
     def _check_pair(self) -> bool:
         """检查是否有对子"""
-        rank_counts = Counter(self.rank_chars)
+        rank_counts = Counter(card.rank.value for card in self.cards)
         return any(count >= 2 for count in rank_counts.values())
 
     def _check_trips(self) -> bool:
         """检查是否有三条"""
-        rank_counts = Counter(self.rank_chars)
+        rank_counts = Counter(card.rank.value for card in self.cards)
         return any(count >= 3 for count in rank_counts.values())
 
     def _check_quads(self) -> bool:
         """检查是否有四条"""
-        rank_counts = Counter(self.rank_chars)
+        rank_counts = Counter(card.rank.value for card in self.cards)
         return any(count >= 4 for count in rank_counts.values())
 
     def _check_flush_draw(self) -> bool:
         """检查是否有同花面 (2+张同花)"""
-        suit_counts = Counter(self.suit_chars)
+        suit_counts = Counter(card.suit for card in self.cards)
         max_suit = max(suit_counts.values()) if suit_counts else 0
         return max_suit >= 2
 
@@ -87,216 +79,207 @@ class BoardTexture:
 
         简化判断: 如果有2张以上的牌间隔<=4，则认为有顺子可能
         """
-        if len(self.board) < 2:
+        if len(self.cards) < 2:
             return False
 
-        values = sorted([self.RANK_VALUES[r] for r in self.rank_chars])
+        # 获取所有rank值
+        ranks = sorted([card.rank.value for card in self.cards])
 
         # 特殊处理: A可以作为1
-        if 'A' in self.rank_chars:
-            values_with_ace_low = values + [self.RANK_VALUES['A'] - 13]
-            values = sorted(set(values_with_ace_low))
+        if 14 in ranks:  # A = 14
+            ranks_with_ace_low = ranks + [1]
+            ranks = sorted(set(ranks_with_ace_low))
 
-        # 检查是否有连续性
-        for i in range(len(values) - 1):
-            if values[i+1] - values[i] <= 4:
+        # 检查是否有连续性 (间隔 <= 4)
+        for i in range(len(ranks) - 1):
+            if ranks[i+1] - ranks[i] <= 4:
                 return True
 
         return False
 
     def _count_high_cards(self) -> int:
-        """高牌数量 (T+)"""
-        return sum(1 for r in self.rank_chars if r in 'TJQKA')
+        """计算高牌数量 (T+)"""
+        return sum(1 for card in self.cards if card.rank.value >= 10)
 
     def _count_mid_cards(self) -> int:
-        """中牌数量 (6-9)"""
-        return sum(1 for r in self.rank_chars if r in '6789')
+        """计算中牌数量 (6-9)"""
+        return sum(1 for card in self.cards if 6 <= card.rank.value <= 9)
 
     def _count_low_cards(self) -> int:
-        """低牌数量 (2-5)"""
-        return sum(1 for r in self.rank_chars if r in '2345')
+        """计算低牌数量 (2-5)"""
+        return sum(1 for card in self.cards if 2 <= card.rank.value <= 5)
 
-    def _compute_connectivity(self) -> str:
+    def _compute_connectivity(self) -> float:
         """
-        连接性评估
+        计算连接性 (0.0-1.0)
 
-        Returns:
-            'high': 高度连接 (如 789, JQK)
-            'medium': 中度连接 (如 68T, Q35)
-            'low': 低连接/彩虹面 (如 A72r, K63r)
+        连接性越高，越容易形成顺子
         """
-        if len(self.board) < 3:
-            return 'low'
+        if len(self.cards) < 2:
+            return 0.0
 
-        values = sorted([self.RANK_VALUES[r] for r in self.rank_chars])
+        ranks = sorted([card.rank.value for card in self.cards])
 
-        # 检查最大间隔
-        max_gap = max(values[i+1] - values[i] for i in range(len(values) - 1))
+        # 计算相邻牌的间隔
+        gaps = []
+        for i in range(len(ranks) - 1):
+            gap = ranks[i+1] - ranks[i]
+            gaps.append(gap)
 
-        if max_gap <= 2:
-            return 'high'  # 非常连接
-        elif max_gap <= 4:
-            return 'medium'
-        else:
-            return 'low'
+        # 平均间隔越小，连接性越高
+        avg_gap = sum(gaps) / len(gaps)
+
+        # 映射到 0-1: gap=1(完美连接)→1.0, gap=4(分散)→0.0
+        connectivity = max(0.0, 1.0 - (avg_gap - 1) / 3.0)
+
+        return connectivity
 
     def _compute_wetness(self) -> str:
         """
-        牌面湿度综合评估
+        计算牌面湿度 (dry/medium/wet)
 
-        Returns:
-            'dry': 干燥面 (如 Ar7r2r, KhQc3d)
-            'medium': 中等 (如 Th9s5c, KhJs6d)
-            'wet': 湿润面 (如 Ts9s8h, JhTh9c)
+        考虑因素:
+        - 同花面
+        - 顺子面
+        - 连接性
+        - 高牌数量
         """
         score = 0
 
-        # 对子/三条降低湿度
-        if self.has_trips:
-            score -= 2
-        elif self.has_pair:
+        # 同花面 (+2)
+        if self.flush_draw_possible:
+            suit_counts = Counter(card.suit for card in self.cards)
+            max_suit = max(suit_counts.values())
+            if max_suit >= 3:
+                score += 3  # 3张同花很湿
+            elif max_suit == 2:
+                score += 2
+
+        # 顺子面 (+2)
+        if self.straight_draw_possible:
+            score += 2
+
+        # 连接性 (+1)
+        if self.connectivity > 0.6:
+            score += 1
+
+        # 高牌多 (+1)
+        if self.high_card_count >= 2:
+            score += 1
+
+        # 对子面 (-1，减少湿度)
+        if self.has_pair:
             score -= 1
 
-        # 同花面
-        suit_counts = Counter(self.suit_chars)
-        max_suit = max(suit_counts.values()) if suit_counts else 0
-        if max_suit >= 3:
-            score += 3
-        elif max_suit >= 2:
-            score += 1
-
-        # 连接性
-        if self.connectivity == 'high':
-            score += 3
-        elif self.connectivity == 'medium':
-            score += 1
-
-        # 高牌数量 (高牌多 -> 更dry，因为范围hit率低)
-        if self.high_card_count >= 2:
-            score -= 2  # 增加权重
-
-        # 中低牌多 -> 更wet (更多顺子可能)
-        if self.mid_card_count + self.low_card_count >= 2:
-            score += 1
-
-        # 评分映射
-        if score <= 0:
+        # 分类
+        if score <= 2:
             return 'dry'
-        elif score <= 2:
+        elif score <= 4:
             return 'medium'
         else:
             return 'wet'
 
-    # ===== 范围优势分析 =====
+    # ===== 决策辅助方法 =====
 
     def favors_caller_or_raiser(self) -> str:
         """
-        判断牌面更有利于caller还是raiser
-
-        一般规律:
-        - 低牌连接面 (如 876, 654) -> 有利于caller (可以有更多小对/同花听牌)
-        - 高牌面 (如 AKx, KQx) -> 有利于raiser (更可能有大对/TPTK)
-        - 干燥高牌 (如 Ar7r2r) -> 强烈有利于raiser
-        - 湿润中低牌 (如 9s8s5h) -> 有利于caller
+        判断牌面更有利于 caller 还是 raiser
 
         Returns:
-            'raiser': 有利于加注者
-            'caller': 有利于跟注者
-            'neutral': 中性
+            'raiser': 干燥高牌面，raiser范围优势
+            'caller': 湿润连牌面，caller有更多听牌
         """
+        # 干燥高牌面 → raiser
         if self.wetness == 'dry' and self.high_card_count >= 2:
             return 'raiser'
 
-        if self.wetness == 'wet' and self.high_card_count <= 1:
+        # 湿润低牌/连牌面 → caller
+        if self.wetness == 'wet' or self.connectivity > 0.7:
             return 'caller'
 
-        if self.high_card_count >= 2:
-            return 'raiser'
+        # 中等 → 平衡
+        return 'balanced'
 
-        if self.connectivity == 'high':
-            return 'caller'
-
-        return 'neutral'
-
-    def suggested_cbet_size(self, pot: int) -> float:
+    def suggested_cbet_size(self, pot: float) -> float:
         """
-        建议的C-bet尺寸
+        建议的c-bet尺寸 (作为pot的百分比)
 
         Args:
-            pot: 当前底池大小
+            pot: 底池大小
 
         Returns:
-            建议下注量 (占底池比例)
+            下注尺寸占pot的百分比 (0.33, 0.50, 0.66, 0.75, 1.0)
         """
+        # 干燥面 → 小注 (33%-50%)
         if self.wetness == 'dry':
-            return 0.33  # 小注 (对手没什么outs)
+            if self.high_card_count >= 2:
+                return 0.50  # 高牌干燥面，标准尺寸
+            else:
+                return 0.33  # 低牌干燥面，小注
 
-        if self.wetness == 'wet':
-            return 0.75  # 大注 (保护，不给对手好价格)
+        # 湿润面 → 大注保护 (66%-100%)
+        elif self.wetness == 'wet':
+            if self.flush_draw_possible:
+                suit_counts = Counter(card.suit for card in self.cards)
+                max_suit = max(suit_counts.values())
+                if max_suit >= 3:
+                    return 1.0  # 3张同花，pot bet
+                else:
+                    return 0.75  # 2张同花，75%
+            else:
+                return 0.66  # 其他湿润面，2/3 pot
 
-        return 0.50  # 标准半池
+        # 中等 → 标准尺寸 (50%-66%)
+        else:
+            return 0.50
 
-    # ===== 辅助方法 =====
-
-    def _rank_int_to_char(self, rank_int: int) -> str:
+    def to_dict(self) -> Dict:
         """
-        treys rank_int -> char
+        转换为字典表示
 
-        treys rank: 0=Deuce, 1=Trey, ..., 12=Ace
+        Returns:
+            包含所有特征的字典
         """
-        return self.RANK_ORDER[rank_int]
+        return {
+            'has_pair': self.has_pair,
+            'has_trips': self.has_trips,
+            'has_quads': self.has_quads,
+            'flush_draw_possible': self.flush_draw_possible,
+            'straight_draw_possible': self.straight_draw_possible,
+            'high_card_count': self.high_card_count,
+            'mid_card_count': self.mid_card_count,
+            'low_card_count': self.low_card_count,
+            'connectivity': self.connectivity,
+            'wetness': self.wetness,
+            'favors': self.favors_caller_or_raiser(),
+        }
 
-    def _suit_int_to_char(self, suit_int: int) -> str:
-        """
-        treys suit_int -> char
+    def __str__(self) -> str:
+        """字符串表示"""
+        features = []
 
-        treys suit: 1=spade, 2=heart, 4=diamond, 8=club
-        """
-        suit_map = {1: 's', 2: 'h', 4: 'd', 8: 'c'}
-        return suit_map.get(suit_int, '?')
+        if self.has_quads:
+            features.append("4条")
+        elif self.has_trips:
+            features.append("3条")
+        elif self.has_pair:
+            features.append("对子")
 
-    def __repr__(self):
-        board_str = ' '.join([Card.int_to_str(c) for c in self.board])
-        return (f"BoardTexture({board_str}): "
-                f"wetness={self.wetness}, connectivity={self.connectivity}, "
-                f"flush_draw={self.flush_draw_possible}, straight_draw={self.straight_draw_possible}")
+        if self.flush_draw_possible:
+            suit_counts = Counter(card.suit for card in self.cards)
+            max_suit = max(suit_counts.values())
+            if max_suit >= 3:
+                features.append("3同花")
+            else:
+                features.append("2同花")
 
+        if self.straight_draw_possible:
+            features.append("顺子面")
 
-# ===== 示例用法 =====
+        features.append(f"湿度:{self.wetness}")
+        features.append(f"有利:{self.favors_caller_or_raiser()}")
 
-if __name__ == '__main__':
-    # 测试不同牌面
-    print("=== Dry Board ===")
-    board1 = [Card.new('As'), Card.new('7h'), Card.new('2d')]
-    texture1 = BoardTexture(board1)
-    print(texture1)
-    print(f"Favors: {texture1.favors_caller_or_raiser()}")
-    print(f"Suggested C-bet: {texture1.suggested_cbet_size(100):.2f} pot")
+        return f"BoardTexture({', '.join(features)})"
 
-    print("\n=== Wet Board ===")
-    board2 = [Card.new('Ts'), Card.new('9s'), Card.new('8h')]
-    texture2 = BoardTexture(board2)
-    print(texture2)
-    print(f"Favors: {texture2.favors_caller_or_raiser()}")
-    print(f"Suggested C-bet: {texture2.suggested_cbet_size(100):.2f} pot")
-
-    print("\n=== Medium Board ===")
-    board3 = [Card.new('Kh'), Card.new('Jc'), Card.new('6d')]
-    texture3 = BoardTexture(board3)
-    print(texture3)
-    print(f"Favors: {texture3.favors_caller_or_raiser()}")
-    print(f"Suggested C-bet: {texture3.suggested_cbet_size(100):.2f} pot")
-
-    print("\n=== Paired Board ===")
-    board4 = [Card.new('Qc'), Card.new('Qh'), Card.new('3s')]
-    texture4 = BoardTexture(board4)
-    print(texture4)
-    print(f"Has pair: {texture4.has_pair}")
-    print(f"Wetness: {texture4.wetness}")
-
-    print("\n=== Flush Draw Board ===")
-    board5 = [Card.new('Ah'), Card.new('Kh'), Card.new('Th')]
-    texture5 = BoardTexture(board5)
-    print(texture5)
-    print(f"Flush draw possible: {texture5.flush_draw_possible}")
-    print(f"Wetness: {texture5.wetness}")
+    def __repr__(self) -> str:
+        return self.__str__()

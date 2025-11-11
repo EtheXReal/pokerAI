@@ -39,6 +39,16 @@ from .calculator import (
     quick_equity,
 )
 
+from .range import (
+    HandCombo,
+    Range,
+    RangeGenerator,
+    RangeParser,
+    create_premium_range,
+    create_broadw_range,
+    create_any_pair_range,
+)
+
 __all__ = [
     # Cards
     'Rank',
@@ -60,6 +70,15 @@ __all__ = [
     'EquityResult',
     'EquityCalculator',
     'quick_equity',
+
+    # Range
+    'HandCombo',
+    'Range',
+    'RangeGenerator',
+    'RangeParser',
+    'create_premium_range',
+    'create_broadw_range',
+    'create_any_pair_range',
 ]
 
 __version__ = '0.1.0'

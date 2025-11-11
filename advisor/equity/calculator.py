@@ -222,6 +222,107 @@ class EquityCalculator:
         )
 
 
+    def calculate_range_vs_range(
+        self,
+        hero_range: 'Range',
+        villain_range: 'Range',
+        board: Optional[Board] = None,
+        iterations: Optional[int] = None,
+        sample_size: Optional[int] = None
+    ) -> EquityResult:
+        """
+        计算 Range vs Range 的Equity
+
+        由于range vs range可能有大量组合，使用采样方法:
+        1. 从各range中随机采样hand combos
+        2. 对每个组合计算equity
+        3. 加权平均
+
+        Args:
+            hero_range: 我方range
+            villain_range: 对手range
+            board: 公共牌 (可选)
+            iterations: 每个对抗的模拟次数
+            sample_size: 采样大小 (None=计算所有组合)
+
+        Returns:
+            加权平均的EquityResult
+        """
+        if board is None:
+            board = Board([])
+
+        if iterations is None:
+            iterations = self.iterations
+
+        # 移除死牌
+        dead_cards = set(board.cards)
+        hero_valid = hero_range.remove_dead_cards(dead_cards)
+        villain_valid = villain_range.remove_dead_cards(dead_cards)
+
+        hero_hands = hero_valid.to_hands()
+        villain_hands = villain_valid.to_hands()
+
+        if not hero_hands or not villain_hands:
+            raise ValueError("No valid hand combinations after removing dead cards")
+
+        # 决定采样还是全部计算
+        total_combos = len(hero_hands) * len(villain_hands)
+
+        if sample_size is None or sample_size >= total_combos:
+            # 计算所有组合 - 对每个hero hand vs villain range
+            total_wins = 0.0
+            total_ties = 0.0
+            total_losses = 0.0
+
+            for hero_hand in hero_hands:
+                result = self.calculate_vs_range(hero_hand, villain_hands, board, iterations)
+                total_wins += result.win
+                total_ties += result.tie
+                total_losses += result.loss
+
+            num_hero = len(hero_hands)
+            return EquityResult(
+                win=total_wins / num_hero,
+                tie=total_ties / num_hero,
+                loss=total_losses / num_hero,
+                iterations=iterations * total_combos
+            )
+
+        # 采样计算
+        total_wins = 0.0
+        total_ties = 0.0
+        total_losses = 0.0
+        valid_samples = 0
+
+        for _ in range(sample_size):
+            # 随机选择组合
+            hero_hand = random.choice(hero_hands)
+            villain_hand = random.choice(villain_hands)
+
+            # 检查是否有重复牌
+            if hero_hand.to_cards_set() & villain_hand.to_cards_set():
+                continue
+
+            try:
+                result = self.calculate_equity(hero_hand, villain_hand, board, iterations)
+                total_wins += result.win
+                total_ties += result.tie
+                total_losses += result.loss
+                valid_samples += 1
+            except ValueError:
+                continue
+
+        if valid_samples == 0:
+            raise ValueError("No valid samples found")
+
+        return EquityResult(
+            win=total_wins / valid_samples,
+            tie=total_ties / valid_samples,
+            loss=total_losses / valid_samples,
+            iterations=iterations * valid_samples
+        )
+
+
 def quick_equity(
     hero: str,
     villain: str,

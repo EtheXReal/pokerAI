@@ -1,0 +1,148 @@
+================================================================================
+Phase 2.4 - AI vs Random 1000手测试结果
+================================================================================
+
+测试时间: 2025-11-11 15:13:15
+总用时: 116.2 秒
+平均速度: 8.6 手/秒
+
+================================================================================
+📊 测试结果
+================================================================================
+
+总手数: 1000
+AI总盈亏: -96.00 BB
+AI BB/100: -9.60 BB/100手
+
+BTN位置 (500手):
+  盈亏: -123.00 BB
+  BB/100: -24.60
+
+BB位置 (500手):
+  盈亏: +27.00 BB
+  BB/100: +5.40
+
+================================================================================
+📈 Phase 2.4 目标对比
+================================================================================
+
+目标 BB/100: +60.00
+实际 BB/100: -9.60
+差距: -69.60
+
+❌ 未达到目标，需要优化
+
+================================================================================
+💡 分析
+================================================================================
+
+样本量: 1000 手 (统计显著性良好)
+标准差估计: ±3.2 BB/100
+
+================================================================================
+详细数据 (前100手)
+================================================================================
+Hand  Position  Profit    AI_Hand    Random_Hand  Actions
+--------------------------------------------------------------------------------
+   0  BTN       +3.00  3h3s      5dJs      AI:raise,Rand:call,showdown
+   1  BB        +1.00  7dTc      8s2d      Rand:call,showdown
+   2  BTN       +1.00  Ah9s      4cKs      AI:raise,Rand:fold
+   3  BB        +0.50  6h2h      4d7d      Rand:fold
+   4  BTN       -0.50  Ks5d      QcJc      AI:fold
+   5  BB        +0.50  5dAh      AdTd      Rand:fold
+   6  BTN       -0.50  6s9c      4h4c      AI:fold
+   7  BB        +0.50  8d9s      7sKc      Rand:fold
+   8  BTN       +1.00  Qc4c      4sAs      AI:raise,Rand:fold
+   9  BB        +0.50  7sJd      AdKh      Rand:fold
+  10  BTN       +3.00  Qh3h      AsQc      AI:raise,Rand:call,showdown
+  11  BB        +0.50  Kh3h      9hQh      Rand:fold
+  12  BTN       -3.00  QcJs      4sKh      AI:raise,Rand:call,showdown
+  13  BB        -1.00  2dAh      Jd8s      Rand:call,showdown
+  14  BTN       +1.00  As3s      3h3c      AI:raise,Rand:fold
+  15  BB        +0.00  Kc7h      JdKh      Rand:call,showdown
+  16  BTN       -0.50  4c8d      2d2h      AI:fold
+  17  BB        -1.00  Td3s      Kc6c      Rand:call,showdown
+  18  BTN       +3.00  JcJh      Jd3h      AI:raise,Rand:call,showdown
+  19  BB        +1.00  AsAc      8h3h      Rand:call,showdown
+  20  BTN       +3.00  6hJh      8h9c      AI:raise,Rand:call,showdown
+  21  BB        -1.00  5d2s      3h7d      Rand:call,showdown
+  22  BTN       -0.50  Ac4d      Kd3h      AI:fold
+  23  BB        +0.50  4dJd      4hTs      Rand:fold
+  24  BTN       -0.50  Th8d      QdJs      AI:fold
+  25  BB        +0.00  3cJd      6s4c      Rand:call,showdown
+  26  BTN       -0.50  4h9d      8h7c      AI:fold
+  27  BB        -1.00  ThTc      7s5c      Rand:raise,AI:fold
+  28  BTN       +3.00  KhKc      Qc4c      AI:raise,Rand:call,showdown
+  29  BB        +0.50  8s5d      4c4h      Rand:fold
+  30  BTN       -0.50  6h8d      Qs5s      AI:fold
+  31  BB        +0.50  7dQh      6h2s      Rand:fold
+  32  BTN       -3.00  7hJh      4dAs      AI:raise,Rand:call,showdown
+  33  BB        -1.00  3s7h      AcQs      Rand:call,showdown
+  34  BTN       -3.00  4c8c      Ks5h      AI:raise,Rand:call,showdown
+  35  BB        +0.50  2sQd      Tc4c      Rand:fold
+  36  BTN       -3.00  Ts9s      8sQc      AI:raise,Rand:raise,AI:foldto3bet
+  37  BB        +0.50  2cKd      9s4d      Rand:fold
+  38  BTN       -0.50  9d5c      5d4d      AI:fold
+  39  BB        -1.00  9dKs      TsTc      Rand:call,showdown
+  40  BTN       -3.00  9h8d      AsKd      AI:raise,Rand:call,showdown
+  41  BB        +0.50  4hQd      2sTd      Rand:fold
+  42  BTN       +3.00  9cAd      2sTc      AI:raise,Rand:call,showdown
+  43  BB        -1.00  Tc6c      Td6d      Rand:call,showdown
+  44  BTN       -0.50  4hTs      ThQd      AI:fold
+  45  BB        +0.50  2hTh      8h9d      Rand:fold
+  46  BTN       -0.50  Jd6c      Ad6s      AI:fold
+  47  BB        -1.00  Qs2d      AsKc      Rand:raise,AI:fold
+  48  BTN       +3.00  AhKs      Kc5d      AI:raise,Rand:call,showdown
+  49  BB        -1.00  2dJd      4h2s      Rand:raise,AI:fold
+  50  BTN       -3.00  3sTs      Jd8c      AI:raise,Rand:call,showdown
+  51  BB        +1.00  4h3c      4d2c      Rand:call,showdown
+  52  BTN       +3.00  TdQh      Kd9d      AI:raise,Rand:call,showdown
+  53  BB        +0.50  3c6d      3d4h      Rand:fold
+  54  BTN       -0.50  Ad5s      Jc6s      AI:fold
+  55  BB        +0.00  Ac6c      6h2h      Rand:call,showdown
+  56  BTN       +1.00  QcJs      5h4s      AI:raise,Rand:fold
+  57  BB        +0.50  4dKh      Qs4c      Rand:fold
+  58  BTN       -0.50  Jh6c      Qd6s      AI:fold
+  59  BB        +0.50  3sAc      6dQd      Rand:fold
+  60  BTN       -0.50  Kc6h      Qd3c      AI:fold
+  61  BB        -1.00  7dJh      8c8h      Rand:call,showdown
+  62  BTN       -0.50  Qc5h      4hKd      AI:fold
+  63  BB        +0.50  2dTs      Jh9c      Rand:fold
+  64  BTN       +1.00  9hTs      4cTc      AI:raise,Rand:fold
+  65  BB        +0.50  Td7h      3d5d      Rand:fold
+  66  BTN       -0.50  6h3c      Qs7s      AI:fold
+  67  BB        +1.00  Qs6d      3d2s      Rand:call,showdown
+  68  BTN       +1.00  6h8h      Qd2h      AI:raise,Rand:fold
+  69  BB        -1.00  8cQs      3h2h      Rand:call,showdown
+  70  BTN       -0.50  8s6h      4cTh      AI:fold
+  71  BB        +0.50  4cQh      3s5s      Rand:fold
+  72  BTN       +1.00  Ac8d      Ad9h      AI:raise,Rand:fold
+  73  BB        +0.50  6sKs      6c5d      Rand:fold
+  74  BTN       +1.00  Qh8h      Qd4h      AI:raise,Rand:fold
+  75  BB        -1.00  7sTs      2dKd      Rand:raise,AI:fold
+  76  BTN       +1.00  7s3s      8c4s      AI:raise,Rand:fold
+  77  BB        -1.00  Jh6s      4s2c      Rand:raise,AI:fold
+  78  BTN       -0.50  Ad2s      6cTs      AI:fold
+  79  BB        -1.00  8hQs      JcAd      Rand:call,showdown
+  80  BTN       -0.50  6dKs      7hQs      AI:fold
+  81  BB        +0.50  4c2d      3h7s      Rand:fold
+  82  BTN       +3.00  QcJc      6c2s      AI:raise,Rand:call,showdown
+  83  BB        +0.50  9c5c      3dJh      Rand:fold
+  84  BTN       +3.00  7s6s      8d9s      AI:raise,Rand:call,showdown
+  85  BB        +0.50  3sJc      Ts7h      Rand:fold
+  86  BTN       -0.50  Qd7h      3dQc      AI:fold
+  87  BB        +1.00  Qc6s      6cJc      Rand:call,showdown
+  88  BTN       -0.50  8d7c      2d9h      AI:fold
+  89  BB        -1.00  TdAs      9d7h      Rand:call,showdown
+  90  BTN       +7.50  TdAh      2c7h      AI:raise,Rand:raise,AI:call3bet,showdown
+  91  BB        +0.50  KdJs      7hKc      Rand:fold
+  92  BTN       +1.00  9hAh      2hJs      AI:raise,Rand:fold
+  93  BB        +0.50  Tc9h      Qc3d      Rand:fold
+  94  BTN       -7.50  TdAd      2hKd      AI:raise,Rand:raise,AI:call3bet,showdown
+  95  BB        +1.00  5h5d      6sAs      Rand:call,showdown
+  96  BTN       -0.50  8hTd      Jd7d      AI:fold
+  97  BB        -1.00  9c5h      Kc7s      Rand:call,showdown
+  98  BTN       -0.50  3cJd      6h2c      AI:fold
+  99  BB        -1.00  7h5c      6d2d      Rand:call,showdown
+
+... (剩余 900 手数据省略)

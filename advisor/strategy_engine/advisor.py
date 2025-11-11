@@ -39,22 +39,18 @@ class GameState:
 
     包含做决策所需的所有信息
     """
-    # 基本信息
+    # 必填字段（没有默认值）
     street: str  # 'preflop', 'flop', 'turn', 'river'
     position: str  # 'UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'
     is_in_position: bool
-
-    # 手牌和公共牌
     hero_hand: Hand
-    board: Optional[Board] = None
-
-    # 筹码和底池
     pot_size: float  # BB
     effective_stack: float  # BB
     hero_stack: float  # BB
 
-    # 行动历史
-    action_history: List[str] = None  # ['open', '3bet', 'call', ...]
+    # 可选字段（有默认值）
+    board: Optional[Board] = None
+    action_history: Optional[List[str]] = None  # ['open', '3bet', 'call', ...]
 
     # 当前面对的情况
     facing_bet: Optional[float] = None  # 对手下注大小 (BB)

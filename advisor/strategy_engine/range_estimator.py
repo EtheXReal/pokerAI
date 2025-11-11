@@ -91,7 +91,7 @@ class RangeEstimator:
         # 跛入（Limp）
         elif action == Action.LIMP:
             # Limp通常是弱范围或小对子
-            return Range.from_string("22-66,A2s-A5s,K8s-K9s,Q9s,J9s,T8s")
+            return Range.from_string("22-66,A2s,A3s,A4s,A5s,K8s,K9s,Q9s,J9s,T8s")
 
         # 3-bet行动
         elif action == Action.THREE_BET:
@@ -118,8 +118,8 @@ class RangeEstimator:
         Returns:
             'tight', 'normal', 'loose'
         """
-        tight_types = [PlayerType.NIT, PlayerType.ROCK, PlayerType.TAG]
-        loose_types = [PlayerType.MANIAC, PlayerType.WHALE, PlayerType.LAG, PlayerType.CALLING_STATION]
+        tight_types = [PlayerType.NIT, PlayerType.WEAK_TIGHT, PlayerType.TAG]
+        loose_types = [PlayerType.MANIAC, PlayerType.FISH, PlayerType.LAG, PlayerType.CALLING_STATION, PlayerType.LAP]
 
         if player_type in tight_types:
             return 'tight'
@@ -136,11 +136,11 @@ class RangeEstimator:
         # 基础3-bet范围
         if player_type == PlayerType.LAG or player_type == PlayerType.MANIAC:
             # 激进玩家：宽3-bet
-            base_range = "88+,A9s+,KTs+,QJs,A5s-A2s,ATo+,KJo+"
+            base_range = "88+,A9s+,KTs+,QJs,A2s,A3s,A4s,A5s,ATo+,KJo+"
         elif player_type == PlayerType.TAG:
             # TAG：平衡3-bet
             base_range = "99+,AJs+,KQs,AQo+"
-        elif player_type == PlayerType.NIT or player_type == PlayerType.ROCK:
+        elif player_type == PlayerType.NIT or player_type == PlayerType.WEAK_TIGHT:
             # 紧手：窄3-bet
             base_range = "JJ+,AKs,AKo"
         else:
@@ -446,7 +446,16 @@ def estimate_villain_range(position: str,
     estimator = RangeEstimator()
 
     pos = Position[position.upper()]
-    act = Action[action.upper().replace('-', '_')]
+
+    # 处理数字前缀的行动（3bet -> THREE_BET, 4bet -> FOUR_BET）
+    action_map = {
+        '3BET': 'THREE_BET',
+        '4BET': 'FOUR_BET',
+    }
+    action_key = action.upper().replace('-', '_')
+    action_key = action_map.get(action_key, action_key)
+    act = Action[action_key]
+
     vs_pos = Position[vs_position.upper()] if vs_position else None
 
     return estimator.estimate_preflop_range(pos, act, player_type, vs_pos)

@@ -99,7 +99,7 @@ class ProLevelAdvisor:
         """
         # 三层架构
         self.range_estimator = RangeEstimator()
-        self.equity_calculator = EquityCalculator(iterations=5000)
+        self.equity_calculator = EquityCalculator(iterations=1000)  # 性能优化：10000→1000
         self.gto_baseline = GTOBaseline()
         self.classifier = PlayerClassifier()
 
@@ -131,7 +131,8 @@ class ProLevelAdvisor:
             game_state.hero_hand,
             villain_range,
             game_state.board,
-            game_state.num_opponents
+            game_state.num_opponents,
+            game_state
         )
 
         # ===== 步骤3: 分析公共牌 =====
@@ -182,6 +183,43 @@ class ProLevelAdvisor:
 
     # ===== 内部方法 =====
 
+    def _get_iterations(self, game_state: GameState, equity_estimate: float = 0.5) -> int:
+        """
+        根据场景动态决定迭代次数（上下文感知精度）
+
+        Args:
+            game_state: 游戏状态
+            equity_estimate: 粗略equity估计（用于判断是否边缘）
+
+        Returns:
+            建议的迭代次数
+        """
+        # 计算SPR
+        spr = game_state.effective_stack / game_state.pot_size if game_state.pot_size > 0 else 10
+
+        # 场景1: 翻前深筹码 → 需要精确
+        if game_state.street == 'preflop' and spr > 10:
+            return 1000
+
+        # 场景2: 小底池 → 快速估算即可
+        if game_state.pot_size < 5:  # 5BB以下
+            return 300
+
+        # 场景3: 边缘决策 (equity 40%-60%) → 需要精确
+        if 0.4 < equity_estimate < 0.6:
+            return 1000
+
+        # 场景4: 明显决策 (equity <30% 或 >70%) → 粗略即可
+        if equity_estimate < 0.3 or equity_estimate > 0.7:
+            return 300
+
+        # 场景5: 翻后决策 → 中等精度
+        if game_state.street in ['flop', 'turn', 'river']:
+            return 500
+
+        # 默认
+        return 1000
+
     def _estimate_ranges(self, game_state: GameState) -> tuple:
         """推断hero和villain范围"""
         # Hero范围（简化：假设合理开池/跟注范围）
@@ -213,8 +251,9 @@ class ProLevelAdvisor:
                          hero_hand: Hand,
                          villain_range: Range,
                          board: Optional[Board],
-                         num_opponents: int) -> float:
-        """计算equity"""
+                         num_opponents: int,
+                         game_state: GameState) -> float:
+        """计算equity（使用上下文感知的迭代次数）"""
         try:
             if board is None:
                 board = Board([])
@@ -234,9 +273,16 @@ class ProLevelAdvisor:
             if not valid_hands:
                 return 0.5
 
+            # 限制combos数量（性能优化）
+            max_combos = 100
+            sampled_hands = valid_hands[:max_combos]
+
+            # 获取动态迭代次数（上下文感知）
+            iterations = self._get_iterations(game_state, equity_estimate=0.5)
+
             # 计算equity
             result = self.equity_calculator.calculate_vs_range(
-                hero_hand, valid_hands[:100], board  # 限制100个combos加速
+                hero_hand, sampled_hands, board, iterations=iterations
             )
 
             equity = result.equity
@@ -445,7 +491,7 @@ class ProLevelAdvisor:
             exploit = get_exploit_strategy(game_state.opponent_type)
             if game_state.opponent_type in [PlayerType.FISH, PlayerType.CALLING_STATION]:
                 optimal_sizing_pct = exploit.preferred_sizing_vs_weak
-            elif game_state.opponent_type in [PlayerType.NIT, PlayerType.ROCK]:
+            elif game_state.opponent_type in [PlayerType.NIT, PlayerType.WEAK_TIGHT]:
                 optimal_sizing_pct = exploit.preferred_sizing_vs_tight
 
         optimal_sizing_bb = pot * optimal_sizing_pct

@@ -53,10 +53,10 @@ class EquityCalculator:
     使用蒙特卡洛模拟计算手牌胜率
     """
 
-    def __init__(self, iterations: int = 10000):
+    def __init__(self, iterations: int = 1000):
         """
         Args:
-            iterations: 蒙特卡洛模拟次数 (默认10000)
+            iterations: 蒙特卡洛模拟次数 (默认1000, 性能优化后)
         """
         self.iterations = iterations
 
@@ -470,7 +470,7 @@ def quick_equity(
     hero: str,
     villain: str,
     board: str = "",
-    iterations: int = 10000
+    iterations: int = 1000
 ) -> EquityResult:
     """
     便捷函数: 快速计算equity
@@ -479,13 +479,13 @@ def quick_equity(
         hero: 我方手牌字符串，如 "AsKs"
         villain: 对手手牌字符串，如 "QhQd"
         board: 公共牌字符串，如 "Js9h2d" (可选)
-        iterations: 模拟次数
+        iterations: 模拟次数 (默认1000, 性能优化后)
 
     Returns:
         EquityResult对象
 
     Example:
-        result = quick_equity("AsKs", "QhQd", "", 10000)
+        result = quick_equity("AsKs", "QhQd", "", 1000)
         print(f"AKs vs QQ equity: {result.equity:.1%}")
     """
     hero_hand = Hand.from_str(hero)

@@ -2,12 +2,14 @@
 """
 优化的Equity计算器 (Optimized Equity Calculator)
 
-这是对原始EquityCalculator的替换，使用V2评估器
+这是对原始EquityCalculator的替换，使用V2评估器 + 多线程加速
 与原始API完全兼容，可以直接替换使用
 """
 from __future__ import annotations
 from typing import List, Optional
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
 from .cards import Hand, Board, create_deck, validate_no_duplicates
 from .calculator import EquityResult  # 复用原始的结果类
@@ -18,16 +20,18 @@ class OptimizedEquityCalculator:
     """
     优化的Equity计算器
 
-    使用V2评估器，速度提升5-8x
+    使用V2评估器 + 多线程，大幅提速同时保持精度
     API与原始EquityCalculator完全兼容
     """
 
-    def __init__(self, iterations: int = 1000):
+    def __init__(self, iterations: int = 1000, max_workers: int = None):
         """
         Args:
             iterations: 蒙特卡洛模拟次数
+            max_workers: 线程池大小（None=自动，通常为CPU核心数）
         """
         self.iterations = iterations
+        self.max_workers = max_workers or min(4, os.cpu_count() or 1)  # 默认最多4线程
 
         # 确保查找表已初始化
         precompute_if_needed_v2()
@@ -104,7 +108,7 @@ class OptimizedEquityCalculator:
         iterations: Optional[int] = None
     ) -> EquityResult:
         """
-        计算 Hand vs Range 的Equity
+        计算 Hand vs Range 的Equity (多线程加速)
 
         与原始API完全兼容
         """
@@ -117,41 +121,73 @@ class OptimizedEquityCalculator:
         if iterations is None:
             iterations = self.iterations
 
-        total_wins = 0.0
-        total_ties = 0.0
-        total_losses = 0.0
-        valid_combos = 0
-
-        # 对range中每手牌计算equity
+        # 过滤有效的villain hands
+        valid_villain_hands = []
         for villain_hand in villain_range:
-            # 检查是否有重复牌
             try:
                 validate_no_duplicates(hero_hand, board)
                 validate_no_duplicates(villain_hand, board)
 
-                if hero_hand.to_cards_set() & villain_hand.to_cards_set():
-                    continue  # 跳过重复的组合
-
+                if not (hero_hand.to_cards_set() & villain_hand.to_cards_set()):
+                    valid_villain_hands.append(villain_hand)
             except ValueError:
                 continue
 
-            # 计算vs这手牌的equity
-            result = self.calculate_equity(hero_hand, villain_hand, board, iterations)
-
-            total_wins += result.win
-            total_ties += result.tie
-            total_losses += result.loss
-            valid_combos += 1
-
-        if valid_combos == 0:
+        if not valid_villain_hands:
             raise ValueError("No valid combinations in villain range")
+
+        # 单线程处理小范围（避免线程开销）
+        if len(valid_villain_hands) <= 5:
+            total_wins = 0.0
+            total_ties = 0.0
+            total_losses = 0.0
+
+            for villain_hand in valid_villain_hands:
+                result = self.calculate_equity(hero_hand, villain_hand, board, iterations)
+                total_wins += result.win
+                total_ties += result.tie
+                total_losses += result.loss
+
+            return EquityResult(
+                win=total_wins / len(valid_villain_hands),
+                tie=total_ties / len(valid_villain_hands),
+                loss=total_losses / len(valid_villain_hands),
+                iterations=iterations * len(valid_villain_hands)
+            )
+
+        # 多线程处理大范围
+        def calc_equity_worker(villain_hand):
+            try:
+                result = self.calculate_equity(hero_hand, villain_hand, board, iterations)
+                return (result.win, result.tie, result.loss)
+            except Exception:
+                return None
+
+        total_wins = 0.0
+        total_ties = 0.0
+        total_losses = 0.0
+        success_count = 0
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(calc_equity_worker, vh): vh for vh in valid_villain_hands}
+
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    total_wins += result[0]
+                    total_ties += result[1]
+                    total_losses += result[2]
+                    success_count += 1
+
+        if success_count == 0:
+            raise ValueError("No valid calculations completed")
 
         # 平均equity
         return EquityResult(
-            win=total_wins / valid_combos,
-            tie=total_ties / valid_combos,
-            loss=total_losses / valid_combos,
-            iterations=iterations * valid_combos
+            win=total_wins / success_count,
+            tie=total_ties / success_count,
+            loss=total_losses / success_count,
+            iterations=iterations * success_count
         )
 
     def calculate_range_vs_range(

@@ -322,6 +322,149 @@ class EquityCalculator:
             iterations=iterations * valid_samples
         )
 
+    def calculate_multiway(
+        self,
+        hero_hand: Hand,
+        villain_ranges: List['Range'],
+        board: Optional[Board] = None,
+        iterations: Optional[int] = None,
+        sample_size: int = 500
+    ) -> EquityResult:
+        """
+        计算多人底池equity (3人或更多玩家)
+
+        在多人底池中，hero需要击败所有对手才能赢得底池。
+        如果有平局，pot按平局人数平分。
+
+        Args:
+            hero_hand: 我方手牌
+            villain_ranges: 多个对手的范围列表 (2个或更多)
+            board: 公共牌 (可选)
+            iterations: 每次采样的模拟次数 (可选)
+            sample_size: 采样大小 (多人底池使用采样以加速)
+
+        Returns:
+            EquityResult对象
+
+        Example:
+            # 3人底池
+            hero = Hand.from_str("AsAh")
+            v1_range = Range.from_string("KK,QQ")
+            v2_range = Range.from_string("AKs,AQs")
+
+            calc = EquityCalculator()
+            result = calc.calculate_multiway(
+                hero,
+                [v1_range, v2_range],
+                Board.from_str("")
+            )
+            # AA在heads-up是82%，3人约65%
+        """
+        if len(villain_ranges) < 2:
+            raise ValueError("Multiway equity requires at least 2 villain ranges")
+
+        if board is None:
+            board = Board([])
+
+        if iterations is None:
+            iterations = self.iterations
+
+        # 移除死牌
+        dead_cards = set(hero_hand.cards) | set(board.cards)
+
+        villain_hands_lists = []
+        for vrange in villain_ranges:
+            valid_range = vrange.remove_dead_cards(dead_cards)
+            villain_hands_lists.append(valid_range.to_hands())
+
+        # 检查是否有空范围
+        if any(not hands for hands in villain_hands_lists):
+            raise ValueError("One or more villain ranges became empty after removing dead cards")
+
+        wins = 0.0
+        ties = 0.0
+        losses = 0.0
+        valid_samples = 0
+
+        for _ in range(sample_size):
+            # 为每个对手随机选择hand
+            villain_hands = []
+            used_cards = set(hero_hand.cards) | set(board.cards)
+            success = True
+
+            for hands_list in villain_hands_lists:
+                # 找到不冲突的hands
+                available = [
+                    h for h in hands_list
+                    if not (h.to_cards_set() & used_cards)
+                ]
+
+                if not available:
+                    success = False
+                    break
+
+                villain_hand = random.choice(available)
+                villain_hands.append(villain_hand)
+                used_cards |= villain_hand.to_cards_set()
+
+            if not success:
+                continue
+
+            # 为这个组合运行Monte Carlo模拟
+            sample_wins = 0
+            sample_ties = 0
+            sample_losses = 0
+
+            for _ in range(iterations):
+                # 创建可用牌组
+                deck = create_deck()
+                all_used = used_cards.copy()
+                available_cards = [c for c in deck if c not in all_used]
+
+                # 发出剩余公共牌
+                cards_needed = 5 - len(board.cards)
+                random_board = random.sample(available_cards, cards_needed)
+                full_board_cards = list(board.cards) + random_board
+
+                # 评估所有玩家
+                hero_cards = list(hero_hand.cards) + full_board_cards
+                hero_strength = HandEvaluator.evaluate_best_5(hero_cards)
+
+                villain_strengths = []
+                for vh in villain_hands:
+                    v_cards = list(vh.cards) + full_board_cards
+                    v_strength = HandEvaluator.evaluate_best_5(v_cards)
+                    villain_strengths.append(v_strength)
+
+                # 找到最佳villain strength
+                best_villain_strength = max(villain_strengths)
+
+                # 判断结果
+                if hero_strength > best_villain_strength:
+                    sample_wins += 1
+                elif hero_strength == best_villain_strength:
+                    # 平局：计算有多少人和hero一样强
+                    num_winners = 1 + sum(1 for vs in villain_strengths if vs == hero_strength)
+                    sample_ties += 1.0 / num_winners
+                else:
+                    sample_losses += 1
+
+            # 累加这个采样的结果
+            wins += sample_wins / iterations
+            ties += sample_ties / iterations
+            losses += sample_losses / iterations
+            valid_samples += 1
+
+        if valid_samples == 0:
+            raise ValueError("No valid hand combinations found in multiway pot")
+
+        return EquityResult(
+            win=wins / valid_samples,
+            tie=ties / valid_samples,
+            loss=losses / valid_samples,
+            iterations=iterations * valid_samples
+        )
+
 
 def quick_equity(
     hero: str,

@@ -103,6 +103,57 @@ class Range:
         """转换为Hand列表 (用于equity计算)"""
         return [combo.hand for combo in self.combos]
 
+    def intersect(self, other: 'Range') -> 'Range':
+        """
+        范围交集 (两个范围的共同部分)
+
+        Args:
+            other: 另一个Range对象
+
+        Returns:
+            包含两个范围共同组合的新Range
+
+        Example:
+            value_range = Range.from_string("AA,KK,QQ,AKs")
+            opponent_range = Range.from_string("QQ,JJ,AKs,AQs")
+            overlap = value_range.intersect(opponent_range)  # QQ,AKs
+        """
+        return Range(self.combos & other.combos)
+
+    def union(self, other: 'Range') -> 'Range':
+        """
+        范围并集 (合并两个范围)
+
+        Args:
+            other: 另一个Range对象
+
+        Returns:
+            包含两个范围所有组合的新Range
+
+        Example:
+            value_range = Range.from_string("AA,KK")
+            bluff_range = Range.from_string("AKs,A5s")
+            full_range = value_range.union(bluff_range)  # AA,KK,AKs,A5s
+        """
+        return Range(self.combos | other.combos)
+
+    def subtract(self, other: 'Range') -> 'Range':
+        """
+        范围差集 (从当前范围中移除另一个范围的组合)
+
+        Args:
+            other: 要移除的Range对象
+
+        Returns:
+            移除指定组合后的新Range (self - other)
+
+        Example:
+            open_range = Range.from_string("77+,ATs+,KJs+")
+            weak_pairs = Range.from_string("77,88,99")
+            vs_3bet = open_range.subtract(weak_pairs)  # TT+,ATs+,KJs+
+        """
+        return Range(self.combos - other.combos)
+
     @staticmethod
     def from_hand_notation(notation: str) -> Range:
         """

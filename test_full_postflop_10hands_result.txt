@@ -1,0 +1,160 @@
+================================================================================
+AI vs Random - 完整测试结果（10手）
+================================================================================
+
+测试时间: 2025-11-11 16:25:22
+总用时: 45.2秒
+平均每手: 4.5秒
+
+================================================================================
+📊 结果汇总
+================================================================================
+
+总手数: 10
+AI总盈亏: +1.47 BB
+AI BB/100: +14.71 BB/100手
+
+BTN位置 (5手): -1.00 BB, BB/100: -20.00
+BB位置 (5手): +2.47 BB, BB/100: +49.43
+
+================================================================================
+📋 详细记录
+================================================================================
+
+Hand #1 - AI Position: BTN
+AI: 9cTh, Random: 5h8h
+Board:   
+
+Actions:
+  [preflop] AI: raise to 2.5BB (pot=3.5BB)
+  [preflop] Random: fold (pot=3.5BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #2 - AI Position: BB
+AI: 5s7h, Random: 2h9d
+Board:   
+
+Actions:
+  [preflop] Random: fold (pot=1.5BB)
+
+Result: AI wins, AI profit: +0.50BB
+
+--------------------------------------------------------------------------------
+
+Hand #3 - AI Position: BTN
+AI: 7cKh, Random: 9h6c
+Board:   
+
+Actions:
+  [preflop] AI: fold (pot=1.5BB)
+
+Result: Random wins, AI profit: -0.50BB
+
+--------------------------------------------------------------------------------
+
+Hand #4 - AI Position: BB
+AI: 2cTd, Random: 7dKc
+Board: 8d 2d Kh 6h 7s
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [flop] Random: bet 1.0BB (pot=3.0BB)
+  [flop] AI: call (pot=4.1BB)
+  [turn] AI: check (pot=4.1BB)
+  [turn] Random: check (pot=4.1BB)
+  [river] AI: check (pot=4.1BB)
+  [river] Random: check (pot=4.1BB)
+
+Result: Random wins, AI profit: -2.05BB
+Showdown: AI=ONE_PAIR, Random=TWO_PAIR
+
+--------------------------------------------------------------------------------
+
+Hand #5 - AI Position: BTN
+AI: 5s8c, Random: 6c8d
+Board:   
+
+Actions:
+  [preflop] AI: fold (pot=1.5BB)
+
+Result: Random wins, AI profit: -0.50BB
+
+--------------------------------------------------------------------------------
+
+Hand #6 - AI Position: BB
+AI: 2s4c, Random: 9h8s
+Board: Kd 6h 4s Kc Th
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [flop] Random: check (pot=2.0BB)
+  [turn] AI: check (pot=2.0BB)
+  [turn] Random: check (pot=2.0BB)
+  [river] AI: check (pot=2.0BB)
+  [river] Random: check (pot=2.0BB)
+
+Result: AI wins, AI profit: +1.00BB
+Showdown: AI=TWO_PAIR, Random=ONE_PAIR
+
+--------------------------------------------------------------------------------
+
+Hand #7 - AI Position: BTN
+AI: 3c7s, Random: Kc7d
+Board:   
+
+Actions:
+  [preflop] AI: fold (pot=1.5BB)
+
+Result: Random wins, AI profit: -0.50BB
+
+--------------------------------------------------------------------------------
+
+Hand #8 - AI Position: BB
+AI: 7s7h, Random: 4hJs
+Board: Kc 8s 9h 5c 2h
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [flop] Random: bet 1.5BB (pot=3.5BB)
+  [flop] AI: call (pot=5.0BB)
+  [turn] AI: check (pot=5.0BB)
+  [turn] Random: check (pot=5.0BB)
+  [river] AI: check (pot=5.0BB)
+  [river] Random: check (pot=5.0BB)
+
+Result: AI wins, AI profit: +2.52BB
+Showdown: AI=ONE_PAIR, Random=HIGH_CARD
+
+--------------------------------------------------------------------------------
+
+Hand #9 - AI Position: BTN
+AI: 6h2s, Random: 9h5d
+Board:   
+
+Actions:
+  [preflop] AI: fold (pot=1.5BB)
+
+Result: Random wins, AI profit: -0.50BB
+
+--------------------------------------------------------------------------------
+
+Hand #10 - AI Position: BB
+AI: 7cJh, Random: As3h
+Board:   
+
+Actions:
+  [preflop] Random: fold (pot=1.5BB)
+
+Result: AI wins, AI profit: +0.50BB
+
+--------------------------------------------------------------------------------
+

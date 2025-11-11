@@ -108,9 +108,16 @@ class GTOBaseline:
         return {'fold': 0.8, 'call': 0.2}
 
     def _preflop_open_strategy(self, position: Position, strength: float) -> Dict[str, float]:
-        """开池策略"""
-        # 位置越好，开池范围越宽
-        position_thresholds = {
+        """
+        开池策略（包含limp逻辑）
+
+        根据hand strength和位置决定：
+        1. Raise (open) - 强牌
+        2. Call (limp) - 中等牌，基于pot odds合理
+        3. Fold - 弱牌
+        """
+        # Raise阈值 - 位置越好，开池范围越宽
+        raise_thresholds = {
             Position.UTG: 0.75,  # 只开最好的25%
             Position.MP: 0.70,
             Position.CO: 0.65,
@@ -119,11 +126,35 @@ class GTOBaseline:
             Position.BB: 1.0,  # BB已经投入，不用开池
         }
 
-        threshold = position_thresholds.get(position, 0.70)
+        # Limp阈值 - 基于pot odds
+        # BTN: 需要投0.5BB看pot 1.5BB，pot odds = 25%
+        # 所以只要equity > 25%就profitable（strength约0.30对应equity 30%+）
+        # 但考虑位置劣势和信息泄露，设置更高的阈值
+        limp_thresholds = {
+            Position.UTG: 0.60,  # EP不推荐limp（容易被squeeze）
+            Position.MP: 0.55,
+            Position.CO: 0.50,
+            Position.BTN: 0.35,  # BTN可以limp较弱的牌（有位置优势）
+            Position.SB: 0.40,   # SB vs BB有pot odds
+            Position.BB: 0.30,   # BB已投入1BB，pot odds很好
+        }
 
-        if strength >= threshold:
-            return {'fold': 0.0, 'raise': 1.0}
+        raise_threshold = raise_thresholds.get(position, 0.70)
+        limp_threshold = limp_thresholds.get(position, 0.50)
+
+        if strength >= raise_threshold:
+            # 强牌：raise (open)
+            return {'fold': 0.0, 'call': 0.0, 'raise': 1.0}
+        elif strength >= limp_threshold:
+            # 中等牌：主要limp，少量raise作为bluff/balance
+            # BTN和SB位置可以更多limp（因为有位置或pot odds优势）
+            if position in [Position.BTN, Position.SB]:
+                return {'fold': 0.0, 'call': 0.85, 'raise': 0.15}
+            else:
+                # EP/MP位置limp风险较高（容易被squeeze），所以部分fold
+                return {'fold': 0.2, 'call': 0.70, 'raise': 0.10}
         else:
+            # 弱牌：fold
             return {'fold': 1.0}
 
     def _preflop_vs_open(self, position: Position, strength: float, stack: float) -> Dict[str, float]:

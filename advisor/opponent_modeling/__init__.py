@@ -20,6 +20,7 @@ from .stats import OpponentStats, PositionStats, StreetsStats, create_opponent_s
 from .models import PlayerType, ActionType, StreetType, PositionType, HandResult, ActionRecord
 from .tracker import StatsTracker, ActionParser, create_tracker
 from .storage import StorageBackend, SQLiteStorage, create_storage
+from .classifier import PlayerClassifier, ClassificationResult, classify_player, get_player_type_name
 
 __all__ = [
     'OpponentStats',
@@ -38,6 +39,10 @@ __all__ = [
     'StorageBackend',
     'SQLiteStorage',
     'create_storage',
+    'PlayerClassifier',
+    'ClassificationResult',
+    'classify_player',
+    'get_player_type_name',
 ]
 
 __version__ = '0.1.0'

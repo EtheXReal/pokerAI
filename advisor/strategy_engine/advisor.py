@@ -102,7 +102,7 @@ class ProLevelAdvisor:
         """
         # 三层架构
         self.range_estimator = RangeEstimator()
-        self.equity_calculator = EquityCalculator(iterations=500)  # 折中：保持精度同时提升速度
+        self.equity_calculator = EquityCalculator(iterations=1000)  # 原始精度
         self.gto_baseline = GTOBaseline()
         self.classifier = PlayerClassifier()
 
@@ -203,26 +203,26 @@ class ProLevelAdvisor:
 
         # 场景1: 翻前深筹码 → 需要精确
         if game_state.street == 'preflop' and spr > 10:
-            return 500  # 折中精度
+            return 1000  # 原始精度
 
         # 场景2: 小底池 → 快速估算即可
         if game_state.pot_size < 5:  # 5BB以下
-            return 200
+            return 300
 
         # 场景3: 边缘决策 (equity 40%-60%) → 需要精确
         if 0.4 < equity_estimate < 0.6:
-            return 500  # 折中精度
+            return 1000  # 原始精度
 
         # 场景4: 明显决策 (equity <30% 或 >70%) → 粗略即可
         if equity_estimate < 0.3 or equity_estimate > 0.7:
-            return 200
+            return 300
 
         # 场景5: 翻后决策 → 中等精度
         if game_state.street in ['flop', 'turn', 'river']:
-            return 300
+            return 500
 
         # 默认
-        return 500  # 折中精度
+        return 1000  # 原始精度
 
     def _estimate_ranges(self, game_state: GameState) -> tuple:
         """推断hero和villain范围"""
@@ -277,8 +277,8 @@ class ProLevelAdvisor:
             if not valid_hands:
                 return 0.5
 
-            # 限制combos数量（平衡精度与速度）
-            max_combos = 30  # 折中：比10多但比100少，配合多线程加速
+            # 限制combos数量（避免过度计算）
+            max_combos = 100  # 原始精度
             sampled_hands = valid_hands[:max_combos]
 
             # 获取动态迭代次数（上下文感知）

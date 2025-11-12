@@ -116,12 +116,13 @@ class SimpleRandomPlayer:
 
     def __init__(self, name: str = "Random"):
         self.name = name
-        self.fold_rate = 0.3
-        self.bet_rate = 0.2
 
     def decide(self, pot: float, facing_bet: float, stack: float) -> Tuple[str, float]:
         """
-        简单的随机决策
+        随机决策 - 所有street一致
+        - 不facing bet: 1/3 bet, 2/3 check
+        - facing bet: 1/3 raise, 2/3 fold
+        - 尺度随机
 
         Returns:
             (action, amount)
@@ -129,17 +130,18 @@ class SimpleRandomPlayer:
         r = random.random()
 
         if facing_bet > 0:
-            # 面对下注
-            if r < self.fold_rate:
-                return 'fold', 0.0
-            elif r < self.fold_rate + 0.15:
-                return 'raise', facing_bet * 2.5
+            # 面对下注: 1/3 raise, 2/3 fold
+            if r < 1.0 / 3.0:
+                # Raise: 随机尺度 2.0-3.5x
+                raise_size = facing_bet * random.uniform(2.0, 3.5)
+                return 'raise', min(raise_size, stack)
             else:
-                return 'call', 0.0
+                return 'fold', 0.0
         else:
-            # 未面对下注
-            if r < self.bet_rate:
-                bet_size = pot * random.uniform(0.5, 1.0)
+            # 未面对下注: 1/3 bet, 2/3 check
+            if r < 1.0 / 3.0:
+                # Bet: 随机尺度 0.33-1.0 pot
+                bet_size = pot * random.uniform(0.33, 1.0)
                 return 'bet', min(bet_size, stack)
             else:
                 return 'check', 0.0
@@ -555,17 +557,210 @@ def play_full_hand(hand_num: int, ai_player: FullGameAIPlayer, random_player: Si
     print(f"  Board: {' '.join(flop_str)} {turn_str}")
     print(f"  Pot: {pot:.1f}BB")
 
-    # 简化：turn和river都check到摊牌
-    if ai_position == 'BB':
-        actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
-        actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
-        print(f"  AI checks, Random checks")
-    else:
-        actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
-        actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
-        print(f"  Random checks, AI checks")
+    # 重置街道投入
+    current_street_ai_invested = 0
+    current_street_random_invested = 0
 
-    # ===== River =====
+    # Flop行动（OOP先行动）
+    if ai_position == 'BB':  # AI OOP
+        # AI先行动
+        game_state = GameState(
+            street='turn',
+            position='BB',
+            is_in_position=False,
+            hero_hand=ai_hand,
+            pot_size=pot,
+            effective_stack=min(ai_stack, random_stack),
+            hero_stack=ai_stack,
+            board=board,
+            facing_bet=0,
+            bet_to_call=0,
+            opponent_type=PlayerType.UNKNOWN
+        )
+
+        ai_action, ai_amount = ai_player.decide(game_state)
+
+        if ai_action == 'bet':
+            bet_amount = min(ai_amount, ai_stack)
+            ai_invested += bet_amount
+            ai_stack -= bet_amount
+            pot += bet_amount
+            current_street_ai_invested = bet_amount
+            actions.append(StreetAction('turn', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+            print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+            # Random响应
+            random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
+
+            if random_action == 'fold':
+                actions.append(StreetAction('turn', 'Random', 'fold', 0, pot))
+                print(f"  Random folds")
+                return FullHandRecord(
+                    hand_num, ai_position, str(ai_hand), str(random_hand),
+                    flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
+                )
+            else:  # call（忽略raise）
+                call_amount = bet_amount
+                random_invested += call_amount
+                random_stack -= call_amount
+                pot += call_amount
+                current_street_random_invested = call_amount
+                actions.append(StreetAction('turn', 'Random', 'call', call_amount, pot))
+                print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+        else:  # check
+            actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
+            print(f"  AI checks")
+
+            # Random行动
+            random_action, random_amount = random_player.decide(pot, 0, random_stack)
+
+            if random_action == 'bet':
+                bet_amount = min(random_amount, random_stack)
+                random_invested += bet_amount
+                random_stack -= bet_amount
+                pot += bet_amount
+                current_street_random_invested = bet_amount
+                actions.append(StreetAction('turn', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+                print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+                # AI响应
+                game_state = GameState(
+                    street='turn',
+                    position='BB',
+                    is_in_position=False,
+                    hero_hand=ai_hand,
+                    pot_size=pot,
+                    effective_stack=min(ai_stack, random_stack),
+                    hero_stack=ai_stack,
+                    board=board,
+                    facing_bet=bet_amount,
+                    bet_to_call=bet_amount,
+                    opponent_type=PlayerType.UNKNOWN
+                )
+
+                ai_action, ai_amount = ai_player.decide(game_state)
+
+                if ai_action == 'fold':
+                    actions.append(StreetAction('turn', 'AI', 'fold', 0, pot))
+                    print(f"  AI folds")
+                    return FullHandRecord(
+                        hand_num, ai_position, str(ai_hand), str(random_hand),
+                        flop_str, '', '', actions, 'Random', -ai_invested, pot, False
+                    )
+                else:  # call
+                    call_amount = bet_amount
+                    ai_invested += call_amount
+                    ai_stack -= call_amount
+                    pot += call_amount
+                    current_street_ai_invested = call_amount
+                    actions.append(StreetAction('turn', 'AI', 'call', call_amount, pot))
+                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+            else:  # check
+                actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
+                print(f"  Random checks")
+
+    else:  # AI IP (BTN)
+        # Random先行动（OOP）
+        random_action, random_amount = random_player.decide(pot, 0, random_stack)
+
+        if random_action == 'bet':
+            bet_amount = min(random_amount, random_stack)
+            random_invested += bet_amount
+            random_stack -= bet_amount
+            pot += bet_amount
+            current_street_random_invested = bet_amount
+            actions.append(StreetAction('turn', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+            print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+            # AI响应
+            game_state = GameState(
+                street='turn',
+                position='BTN',
+                is_in_position=True,
+                hero_hand=ai_hand,
+                pot_size=pot,
+                effective_stack=min(ai_stack, random_stack),
+                hero_stack=ai_stack,
+                board=board,
+                facing_bet=bet_amount,
+                bet_to_call=bet_amount,
+                opponent_type=PlayerType.UNKNOWN
+            )
+
+            ai_action, ai_amount = ai_player.decide(game_state)
+
+            if ai_action == 'fold':
+                actions.append(StreetAction('turn', 'AI', 'fold', 0, pot))
+                print(f"  AI folds")
+                return FullHandRecord(
+                    hand_num, ai_position, str(ai_hand), str(random_hand),
+                    flop_str, '', '', actions, 'Random', -ai_invested, pot, False
+                )
+            else:  # call
+                call_amount = bet_amount
+                ai_invested += call_amount
+                ai_stack -= call_amount
+                pot += call_amount
+                current_street_ai_invested = call_amount
+                actions.append(StreetAction('turn', 'AI', 'call', call_amount, pot))
+                print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+        else:  # check
+            actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
+            print(f"  Random checks")
+
+            # AI行动
+            game_state = GameState(
+                street='turn',
+                position='BTN',
+                is_in_position=True,
+                hero_hand=ai_hand,
+                pot_size=pot,
+                effective_stack=min(ai_stack, random_stack),
+                hero_stack=ai_stack,
+                board=board,
+                facing_bet=0,
+                bet_to_call=0,
+                opponent_type=PlayerType.UNKNOWN
+            )
+
+            ai_action, ai_amount = ai_player.decide(game_state)
+
+            if ai_action == 'bet':
+                bet_amount = min(ai_amount, ai_stack)
+                ai_invested += bet_amount
+                ai_stack -= bet_amount
+                pot += bet_amount
+                current_street_ai_invested = bet_amount
+                actions.append(StreetAction('turn', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+                print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+                # Random响应
+                random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
+
+                if random_action == 'fold':
+                    actions.append(StreetAction('turn', 'Random', 'fold', 0, pot))
+                    print(f"  Random folds")
+                    return FullHandRecord(
+                        hand_num, ai_position, str(ai_hand), str(random_hand),
+                        flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
+                    )
+                else:  # call
+                    call_amount = bet_amount
+                    random_invested += call_amount
+                    random_stack -= call_amount
+                    pot += call_amount
+                    current_street_random_invested = call_amount
+                    actions.append(StreetAction('turn', 'Random', 'call', call_amount, pot))
+                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+            else:  # check
+                actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
+                print(f"  AI checks")
+
+# ===== River =====
     river_card = board_cards[4]
     river_str = str(river_card)
     board = Board(flop_cards + [turn_card, river_card])
@@ -574,17 +769,210 @@ def play_full_hand(hand_num: int, ai_player: FullGameAIPlayer, random_player: Si
     print(f"  Board: {' '.join(flop_str)} {turn_str} {river_str}")
     print(f"  Pot: {pot:.1f}BB")
 
-    # 简化：river也check到摊牌
-    if ai_position == 'BB':
-        actions.append(StreetAction('river', 'AI', 'check', 0, pot))
-        actions.append(StreetAction('river', 'Random', 'check', 0, pot))
-        print(f"  AI checks, Random checks")
-    else:
-        actions.append(StreetAction('river', 'Random', 'check', 0, pot))
-        actions.append(StreetAction('river', 'AI', 'check', 0, pot))
-        print(f"  Random checks, AI checks")
+    # 重置街道投入
+    current_street_ai_invested = 0
+    current_street_random_invested = 0
 
-    # ===== Showdown =====
+    # Flop行动（OOP先行动）
+    if ai_position == 'BB':  # AI OOP
+        # AI先行动
+        game_state = GameState(
+            street='river',
+            position='BB',
+            is_in_position=False,
+            hero_hand=ai_hand,
+            pot_size=pot,
+            effective_stack=min(ai_stack, random_stack),
+            hero_stack=ai_stack,
+            board=board,
+            facing_bet=0,
+            bet_to_call=0,
+            opponent_type=PlayerType.UNKNOWN
+        )
+
+        ai_action, ai_amount = ai_player.decide(game_state)
+
+        if ai_action == 'bet':
+            bet_amount = min(ai_amount, ai_stack)
+            ai_invested += bet_amount
+            ai_stack -= bet_amount
+            pot += bet_amount
+            current_street_ai_invested = bet_amount
+            actions.append(StreetAction('river', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+            print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+            # Random响应
+            random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
+
+            if random_action == 'fold':
+                actions.append(StreetAction('river', 'Random', 'fold', 0, pot))
+                print(f"  Random folds")
+                return FullHandRecord(
+                    hand_num, ai_position, str(ai_hand), str(random_hand),
+                    flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
+                )
+            else:  # call（忽略raise）
+                call_amount = bet_amount
+                random_invested += call_amount
+                random_stack -= call_amount
+                pot += call_amount
+                current_street_random_invested = call_amount
+                actions.append(StreetAction('river', 'Random', 'call', call_amount, pot))
+                print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+        else:  # check
+            actions.append(StreetAction('river', 'AI', 'check', 0, pot))
+            print(f"  AI checks")
+
+            # Random行动
+            random_action, random_amount = random_player.decide(pot, 0, random_stack)
+
+            if random_action == 'bet':
+                bet_amount = min(random_amount, random_stack)
+                random_invested += bet_amount
+                random_stack -= bet_amount
+                pot += bet_amount
+                current_street_random_invested = bet_amount
+                actions.append(StreetAction('river', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+                print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+                # AI响应
+                game_state = GameState(
+                    street='river',
+                    position='BB',
+                    is_in_position=False,
+                    hero_hand=ai_hand,
+                    pot_size=pot,
+                    effective_stack=min(ai_stack, random_stack),
+                    hero_stack=ai_stack,
+                    board=board,
+                    facing_bet=bet_amount,
+                    bet_to_call=bet_amount,
+                    opponent_type=PlayerType.UNKNOWN
+                )
+
+                ai_action, ai_amount = ai_player.decide(game_state)
+
+                if ai_action == 'fold':
+                    actions.append(StreetAction('river', 'AI', 'fold', 0, pot))
+                    print(f"  AI folds")
+                    return FullHandRecord(
+                        hand_num, ai_position, str(ai_hand), str(random_hand),
+                        flop_str, '', '', actions, 'Random', -ai_invested, pot, False
+                    )
+                else:  # call
+                    call_amount = bet_amount
+                    ai_invested += call_amount
+                    ai_stack -= call_amount
+                    pot += call_amount
+                    current_street_ai_invested = call_amount
+                    actions.append(StreetAction('river', 'AI', 'call', call_amount, pot))
+                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+            else:  # check
+                actions.append(StreetAction('river', 'Random', 'check', 0, pot))
+                print(f"  Random checks")
+
+    else:  # AI IP (BTN)
+        # Random先行动（OOP）
+        random_action, random_amount = random_player.decide(pot, 0, random_stack)
+
+        if random_action == 'bet':
+            bet_amount = min(random_amount, random_stack)
+            random_invested += bet_amount
+            random_stack -= bet_amount
+            pot += bet_amount
+            current_street_random_invested = bet_amount
+            actions.append(StreetAction('river', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+            print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+            # AI响应
+            game_state = GameState(
+                street='river',
+                position='BTN',
+                is_in_position=True,
+                hero_hand=ai_hand,
+                pot_size=pot,
+                effective_stack=min(ai_stack, random_stack),
+                hero_stack=ai_stack,
+                board=board,
+                facing_bet=bet_amount,
+                bet_to_call=bet_amount,
+                opponent_type=PlayerType.UNKNOWN
+            )
+
+            ai_action, ai_amount = ai_player.decide(game_state)
+
+            if ai_action == 'fold':
+                actions.append(StreetAction('river', 'AI', 'fold', 0, pot))
+                print(f"  AI folds")
+                return FullHandRecord(
+                    hand_num, ai_position, str(ai_hand), str(random_hand),
+                    flop_str, '', '', actions, 'Random', -ai_invested, pot, False
+                )
+            else:  # call
+                call_amount = bet_amount
+                ai_invested += call_amount
+                ai_stack -= call_amount
+                pot += call_amount
+                current_street_ai_invested = call_amount
+                actions.append(StreetAction('river', 'AI', 'call', call_amount, pot))
+                print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+        else:  # check
+            actions.append(StreetAction('river', 'Random', 'check', 0, pot))
+            print(f"  Random checks")
+
+            # AI行动
+            game_state = GameState(
+                street='river',
+                position='BTN',
+                is_in_position=True,
+                hero_hand=ai_hand,
+                pot_size=pot,
+                effective_stack=min(ai_stack, random_stack),
+                hero_stack=ai_stack,
+                board=board,
+                facing_bet=0,
+                bet_to_call=0,
+                opponent_type=PlayerType.UNKNOWN
+            )
+
+            ai_action, ai_amount = ai_player.decide(game_state)
+
+            if ai_action == 'bet':
+                bet_amount = min(ai_amount, ai_stack)
+                ai_invested += bet_amount
+                ai_stack -= bet_amount
+                pot += bet_amount
+                current_street_ai_invested = bet_amount
+                actions.append(StreetAction('river', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
+                print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+                # Random响应
+                random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
+
+                if random_action == 'fold':
+                    actions.append(StreetAction('river', 'Random', 'fold', 0, pot))
+                    print(f"  Random folds")
+                    return FullHandRecord(
+                        hand_num, ai_position, str(ai_hand), str(random_hand),
+                        flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
+                    )
+                else:  # call
+                    call_amount = bet_amount
+                    random_invested += call_amount
+                    random_stack -= call_amount
+                    pot += call_amount
+                    current_street_random_invested = call_amount
+                    actions.append(StreetAction('river', 'Random', 'call', call_amount, pot))
+                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+            else:  # check
+                actions.append(StreetAction('river', 'AI', 'check', 0, pot))
+                print(f"  AI checks")
+
+# ===== Showdown =====
     print(f"\n  === Showdown ===")
 
     ai_cards = list(ai_hand.cards) + list(board.cards)

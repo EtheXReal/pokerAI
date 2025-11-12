@@ -1073,6 +1073,9 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
 
     total_time = time.time() - start_time
 
+    # 排序结果（多线程导致顺序混乱）
+    results.sort(key=lambda r: r.hand_num)
+
     # 统计
     ai_total = sum(r.ai_profit for r in results)
     ai_btn_results = [r for r in results if r.ai_position == 'BTN']

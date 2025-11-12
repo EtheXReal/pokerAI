@@ -297,12 +297,16 @@ class EquityEngine(IEquityEngine):
 
         # 如果board已完成，直接比较
         if len(board) == 5:
-            hero_rank = self.evaluator.evaluate(board, hero_hand.cards)
-            villain_rank = self.evaluator.evaluate(board, villain_hand.cards)
+            # 组合手牌+公共牌评估最佳5张
+            hero_cards = list(hero_hand.cards) + list(board)
+            villain_cards = list(villain_hand.cards) + list(board)
 
-            if hero_rank < villain_rank:  # rank越小越强
+            hero_strength = self.evaluator.evaluate_best_5(hero_cards)
+            villain_strength = self.evaluator.evaluate_best_5(villain_cards)
+
+            if hero_strength > villain_strength:  # HandStrength使用>比较
                 return (iterations, 0)
-            elif hero_rank == villain_rank:
+            elif hero_strength == villain_strength:
                 return (0, iterations)
             else:
                 return (0, 0)
@@ -322,15 +326,19 @@ class EquityEngine(IEquityEngine):
 
             # 评估
             try:
-                hero_rank = self.evaluator.evaluate(full_board, hero_hand.cards)
-                villain_rank = self.evaluator.evaluate(full_board, villain_hand.cards)
+                # 组合手牌+完整公共牌评估最佳5张
+                hero_cards = list(hero_hand.cards) + list(full_board)
+                villain_cards = list(villain_hand.cards) + list(full_board)
 
-                if hero_rank < villain_rank:
+                hero_strength = self.evaluator.evaluate_best_5(hero_cards)
+                villain_strength = self.evaluator.evaluate_best_5(villain_cards)
+
+                if hero_strength > villain_strength:  # HandStrength使用>比较
                     wins += 1
-                elif hero_rank == villain_rank:
+                elif hero_strength == villain_strength:
                     ties += 1
-            except:
-                # 评估失败，跳过
+            except Exception as e:
+                # 评估失败，跳过（通常不应该发生）
                 pass
 
         return (wins, ties)

@@ -1,0 +1,178 @@
+================================================================================
+advisor_v2 vs Random - 完整翻后测试结果（10手）
+================================================================================
+
+测试时间: 2025-11-12 10:53:47
+总用时: 0.8秒
+平均每手: 0.08秒
+
+================================================================================
+📊 结果汇总
+================================================================================
+
+总手数: 10
+AI总盈亏: +5.66 BB
+AI BB/100: +56.61 BB/100手
+
+BTN位置 (5手): -13.26 BB, BB/100: -265.18
+BB位置 (5手): +18.92 BB, BB/100: +378.40
+
+================================================================================
+📋 详细记录
+================================================================================
+
+Hand #1 - AI Position: BTN
+AI: Jc6d, Random: 8c5s
+Board: 7h Jh Qc  
+
+Actions:
+  [preflop] AI: raise to 3.8BB (pot=4.8BB)
+  [preflop] Random: call (pot=7.5BB)
+  [flop] Random: check (pot=7.5BB)
+  [flop] AI: bet 6.4BB (pot=13.9BB)
+  [flop] Random: fold (pot=13.9BB)
+
+Result: AI wins, AI profit: +3.75BB
+
+--------------------------------------------------------------------------------
+
+Hand #2 - AI Position: BB
+AI: QdKs, Random: JsTc
+Board: Ah 5d 5c 7s 5h
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [flop] Random: check (pot=2.0BB)
+  [turn] AI: check (pot=2.0BB)
+  [turn] Random: check (pot=2.0BB)
+  [river] AI: check (pot=2.0BB)
+  [river] Random: check (pot=2.0BB)
+
+Result: AI wins, AI profit: +1.00BB
+Showdown: AI=THREE_OF_A_KIND, Random=THREE_OF_A_KIND
+
+--------------------------------------------------------------------------------
+
+Hand #3 - AI Position: BTN
+AI: Qc6s, Random: KdQh
+Board: (preflop fold)
+
+Actions:
+  [preflop] AI: raise to 3.8BB (pot=4.8BB)
+  [preflop] Random: fold (pot=4.8BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #4 - AI Position: BB
+AI: ThJd, Random: 3sAc
+Board: 5c 5s 7d Js 
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [flop] Random: check (pot=2.0BB)
+  [turn] AI: bet 1.7BB (pot=3.7BB)
+  [turn] Random: fold (pot=3.7BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #5 - AI Position: BTN
+AI: Kc5d, Random: 8hAs
+Board: Qc 9h Ah 9c Qh
+
+Actions:
+  [preflop] AI: raise to 3.8BB (pot=4.8BB)
+  [preflop] Random: call (pot=7.5BB)
+  [flop] Random: check (pot=7.5BB)
+  [flop] AI: check (pot=7.5BB)
+  [turn] Random: bet 3.7BB (pot=11.2BB)
+  [turn] AI: call (pot=14.8BB)
+  [river] Random: check (pot=14.8BB)
+  [river] AI: bet 12.6BB (pot=27.4BB)
+  [river] Random: call (pot=40.0BB)
+
+Result: Random wins, AI profit: -20.01BB
+Showdown: AI=TWO_PAIR, Random=TWO_PAIR
+
+--------------------------------------------------------------------------------
+
+Hand #6 - AI Position: BB
+AI: Ts6h, Random: 8h6c
+Board: Jd 3s 8d Td Kd
+
+Actions:
+  [preflop] Random: raise to 2.5BB (pot=3.5BB)
+  [preflop] AI: call (pot=5.0BB)
+  [flop] AI: check (pot=5.0BB)
+  [flop] Random: bet 3.2BB (pot=8.2BB)
+  [flop] AI: call (pot=11.4BB)
+  [turn] AI: check (pot=11.4BB)
+  [turn] Random: check (pot=11.4BB)
+  [river] AI: bet 9.7BB (pot=21.1BB)
+  [river] Random: call (pot=30.8BB)
+
+Result: AI wins, AI profit: +15.42BB
+Showdown: AI=ONE_PAIR, Random=ONE_PAIR
+
+--------------------------------------------------------------------------------
+
+Hand #7 - AI Position: BTN
+AI: 8cTh, Random: 8h4c
+Board: (preflop fold)
+
+Actions:
+  [preflop] AI: raise to 3.8BB (pot=4.8BB)
+  [preflop] Random: fold (pot=4.8BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #8 - AI Position: BB
+AI: 7s5d, Random: Qh4c
+Board: 8h Js 5s  
+
+Actions:
+  [preflop] Random: call (pot=2.0BB)
+  [preflop] AI: check (pot=2.0BB)
+  [flop] AI: bet 1.3BB (pot=3.3BB)
+  [flop] Random: fold (pot=3.3BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #9 - AI Position: BTN
+AI: Tc5d, Random: 7sJd
+Board: Jh Th 5s 6s 
+
+Actions:
+  [preflop] AI: call (pot=2.0BB)
+  [flop] Random: check (pot=2.0BB)
+  [flop] AI: check (pot=2.0BB)
+  [turn] Random: check (pot=2.0BB)
+  [turn] AI: bet 1.3BB (pot=3.3BB)
+  [turn] Random: fold (pot=3.3BB)
+
+Result: AI wins, AI profit: +1.00BB
+
+--------------------------------------------------------------------------------
+
+Hand #10 - AI Position: BB
+AI: 9hAd, Random: 5h7c
+Board: (preflop fold)
+
+Actions:
+  [preflop] Random: fold (pot=1.5BB)
+
+Result: AI wins, AI profit: +0.50BB
+
+--------------------------------------------------------------------------------
+

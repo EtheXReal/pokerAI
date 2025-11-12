@@ -115,35 +115,26 @@ class AdvisorV2Player:
             # 使用DecisionIntegrator决策
             trace = self.integrator.decide(game_state)
 
-            # 解析GTODecision
-            gto_decision = trace.gto_decision
-            action_dist = gto_decision.action_distribution
+            # 使用DecisionIntegrator的select_action进行GTO随机采样
+            # 这是正确的GTO实现：按概率分布随机选择，而不是"选最高概率"
+            selected_action = self.integrator.select_action(trace.gto_decision)
 
-            # 根据action_distribution选择行动
-            if action_dist.fold > 0.5:
-                return 'fold', 0.0
-            elif action_dist.check > 0.5:
-                return 'check', 0.0
-            elif action_dist.call > 0.5:
-                return 'call', 0.0
-            elif action_dist.bet > 0.5 or action_dist.raise_action > 0.5:
-                # 使用optimal_sizing
-                sizing = gto_decision.optimal_sizing if gto_decision.optimal_sizing else 0.66
-                amount = pot_size * sizing
+            action_type = selected_action.action
+            amount = selected_action.amount
 
-                # 至少下注0.5BB，最多all-in
-                amount = max(0.5, min(amount, hero_stack))
-
-                if facing_bet > 0:
-                    return 'raise', amount
+            # 将amount转换为实际BB（如果是bet/raise）
+            if action_type in ['bet', 'raise']:
+                # amount是pot_fraction，需要转换为实际金额
+                if amount > 0:
+                    actual_amount = pot_size * amount
                 else:
-                    return 'bet', amount
+                    actual_amount = pot_size * 0.66  # 默认值
+
+                # 限制在stack范围内
+                actual_amount = max(0.5, min(actual_amount, hero_stack))
+                return action_type, actual_amount
             else:
-                # 默认check/fold
-                if facing_bet > 0:
-                    return 'fold', 0.0
-                else:
-                    return 'check', 0.0
+                return action_type, 0.0
 
         except Exception as e:
             print(f"  [AI决策错误: {e}，使用保守策略]")
@@ -173,7 +164,7 @@ class SimpleRandomPlayer:
         """
         随机决策 - 所有street一致
         - 不facing bet: 1/3 bet, 2/3 check
-        - facing bet: 1/3 raise, 2/3 fold
+        - facing bet: 1/5 raise, 2/5 call, 2/5 fold （更合理的分布）
 
         Returns:
             (action, amount)
@@ -181,12 +172,16 @@ class SimpleRandomPlayer:
         r = random.random()
 
         if facing_bet > 0:
-            # 面对下注: 1/3 raise, 2/3 fold
-            if r < 1.0 / 3.0:
+            # 面对下注: 1/5 raise, 2/5 call, 2/5 fold
+            if r < 0.2:
                 # Raise: 随机尺度 2.0-3.5x
                 raise_size = facing_bet * random.uniform(2.0, 3.5)
                 return 'raise', min(raise_size, stack)
+            elif r < 0.6:
+                # Call: 跟注
+                return 'call', 0.0
             else:
+                # Fold
                 return 'fold', 0.0
         else:
             # 未面对下注: 1/3 bet, 2/3 check

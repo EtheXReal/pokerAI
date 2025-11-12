@@ -226,6 +226,7 @@ def run_betting_round(
 
     # 行动循环
     last_aggressor = None  # 最后一个下注/加注的人
+    last_raise_increment = 1.0  # 最小加注增量，初始为1BB（大盲注）
     num_actions = 0
     max_actions = 20  # 防止无限循环
 
@@ -455,6 +456,9 @@ def run_betting_round(
 
             pot += bet_amount
 
+            # 更新最小加注增量（下次raise必须至少加注这么多）
+            last_raise_increment = bet_amount
+
             # 记录action
             if is_allin:
                 actions.append(StreetAction(street, current_player, f'bet {bet_amount:.1f}BB (all-in)', bet_amount, pot))
@@ -524,8 +528,77 @@ def run_betting_round(
 
             # 计算raise的增量（限制在剩余stack范围内）
             raise_amt = min(amount, current_stack - call_amt)
+            raise_to = facing_bet + raise_amt
+
             # All-in判断：raise后剩余筹码<=1BB
             is_allin = (current_stack - call_amt - raise_amt <= ALLIN_THRESHOLD)
+
+            # 计算最小加注金额（德州扑克规则：必须至少加注前一次的增量）
+            min_raise_to = facing_bet + last_raise_increment
+
+            # 检查是否满足最小加注规则
+            if raise_to < min_raise_to - 0.01:
+                # 不满足最小加注
+                if is_allin:
+                    # All-in特例：筹码不足以完成最小加注，但可以all-in
+                    # 德州扑克规则：all-in金额不足最小加注时，视为all-in call，不重新开启加注轮
+                    if verbose:
+                        print(f"  [All-in below min raise: {raise_to:.1f}BB < {min_raise_to:.1f}BB, treating as all-in call]")
+                    # 转为all-in call
+                    call_amount = current_stack
+
+                    if current_player == 'AI':
+                        ai_invested += call_amount
+                        ai_stack -= call_amount
+                        street_ai_invested += call_amount
+                    else:
+                        random_invested += call_amount
+                        random_stack -= call_amount
+                        street_random_invested += call_amount
+
+                    pot += call_amount
+
+                    # 退回对手未被call的部分
+                    uncalled_bet = call_amt - call_amount
+                    if uncalled_bet > 0.01:
+                        if verbose:
+                            print(f"  [All-in call: returning {uncalled_bet:.1f}BB uncalled bet to opponent]")
+
+                        if current_player == 'AI':
+                            random_stack += uncalled_bet
+                            random_invested -= uncalled_bet
+                            street_random_invested -= uncalled_bet
+                            pot -= uncalled_bet
+                        else:
+                            ai_stack += uncalled_bet
+                            ai_invested -= uncalled_bet
+                            street_ai_invested -= uncalled_bet
+                            pot -= uncalled_bet
+
+                    actions.append(StreetAction(street, current_player, f'call {call_amount:.1f}BB (all-in)', call_amount, pot))
+                    if verbose:
+                        print(f"  {current_player} calls {call_amount:.1f}BB (all-in), pot={pot:.1f}BB")
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+                else:
+                    # 不是all-in且不满足最小加注，转为call
+                    if verbose:
+                        print(f"  [Raise below minimum: {raise_to:.1f}BB < {min_raise_to:.1f}BB, calling instead]")
+                    call_amount = call_amt
+
+                    if current_player == 'AI':
+                        ai_invested += call_amount
+                        ai_stack -= call_amount
+                        street_ai_invested += call_amount
+                    else:
+                        random_invested += call_amount
+                        random_stack -= call_amount
+                        street_random_invested += call_amount
+
+                    pot += call_amount
+                    actions.append(StreetAction(street, current_player, 'call', call_amount, pot))
+                    if verbose:
+                        print(f"  {current_player} calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
 
             # 如果raise_amt过小（除非是all-in），转为call
             if raise_amt < 0.5 and not is_allin:
@@ -565,6 +638,9 @@ def run_betting_round(
             # raise到的总额是：原facing_bet + raise增量
             raise_to = facing_bet + raise_amt
 
+            # 更新最小加注增量（下次raise必须至少加注这么多）
+            last_raise_increment = raise_amt
+
             # 记录action
             if is_allin:
                 actions.append(StreetAction(street, current_player, f'raise to {raise_to:.1f}BB (all-in)', total_amt, pot))
@@ -585,7 +661,8 @@ def run_betting_round(
 
 
 def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: SimpleRandomPlayer,
-                   ai_position: str, starting_stack: float = 100.0, verbose: bool = True) -> FullHandRecord:
+                   ai_position: str, starting_stack: float = 100.0, verbose: bool = True,
+                   base_seed: int = 42) -> FullHandRecord:
     """
     玩一手完整的牌（包含翻前+flop+turn+river，支持多轮加注）
 
@@ -603,8 +680,8 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     sb = 0.5
     bb = 1.0
 
-    # 设置随机种子
-    random.seed(hand_num + int(time.time() * 1000))
+    # 设置随机种子（固定种子确保可重现）
+    random.seed(base_seed * 10000 + hand_num)
 
     # 发牌
     deck = create_deck()
@@ -802,7 +879,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     )
 
 
-def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
+def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, seed: int = 42):
     """运行完整测试"""
     print('=' * 80)
     print('🤖 advisor_v2 vs Random - 完整翻后测试（真扑克 + 多轮加注）')
@@ -810,6 +887,7 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
     print(f'\n配置:')
     print(f'  手数: {num_hands}')
     print(f'  线程数: {num_threads}')
+    print(f'  随机种子: {seed}')
     print(f'  包含: 翻前 + Flop + Turn + River 完整决策')
     print(f'  支持: 多轮加注（bet → raise → 3-bet → 4-bet...）')
     print(f'  架构: DecisionIntegrator (RangeEngine + EquityEngine + BoardAnalyzer + GTOStrategy)')
@@ -833,7 +911,7 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
             print(f'{"="*80}')
 
         try:
-            result = play_full_hand(i, ai, random_player, ai_position, verbose=verbose)
+            result = play_full_hand(i, ai, random_player, ai_position, verbose=verbose, base_seed=seed)
             if verbose:
                 print(f"\n  >>> AI Profit: {result.ai_profit:+.2f}BB")
             return result
@@ -909,6 +987,7 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
         f.write(f'advisor_v2 vs Random - 完整翻后测试结果（{num_hands}手）\n')
         f.write('=' * 80 + '\n\n')
         f.write(f'测试时间: {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+        f.write(f'随机种子: {seed}\n')
         f.write(f'总用时: {total_time:.1f}秒\n')
         f.write(f'平均每手: {total_time/len(results):.2f}秒\n\n')
 
@@ -956,8 +1035,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='advisor_v2完整翻后测试')
     parser.add_argument('--hands', type=int, default=32, help='测试手数（默认32）')
     parser.add_argument('--threads', type=int, default=4, help='线程数（默认4）')
+    parser.add_argument('--seed', type=int, default=42, help='随机种子（默认42，用于重现结果。注意：多线程时结果可能略有不同，使用--threads 1确保完全可重现）')
     parser.add_argument('--verbose', action='store_true', help='详细输出模式')
     args = parser.parse_args()
 
-    run_test(num_hands=args.hands, num_threads=args.threads, verbose=args.verbose)
+    run_test(num_hands=args.hands, num_threads=args.threads, verbose=args.verbose, seed=args.seed)
     print('测试完成！')

@@ -16,7 +16,8 @@ Phase 1目标：
 
 __version__ = "2.0.0-alpha"
 
-from advisor_v2.core.poker_advisor import PokerAdvisor
+# TODO: PokerAdvisor还未实现
+# from advisor_v2.core.poker_advisor import PokerAdvisor
 from advisor_v2.core.data_structures import (
     StrategyContext,
     StrategyDecision,
@@ -27,7 +28,7 @@ from advisor_v2.core.data_structures import (
 )
 
 __all__ = [
-    "PokerAdvisor",
+    # "PokerAdvisor",
     "StrategyContext",
     "StrategyDecision",
     "EquityInfo",

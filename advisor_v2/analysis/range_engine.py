@@ -14,9 +14,10 @@ from typing import List, Optional, Dict, Tuple
 from collections import defaultdict
 
 from advisor_v2.core.interfaces.analysis_interface import IRangeEngine
-from advisor_v2.core.data_structures import RangeAdvantage
-from advisor.game_state import Position, Hand, Action
-from advisor.range import Range
+from advisor_v2.core.data_structures import RangeAdvantage, Action
+from advisor.strategy_engine.gto_baseline import Position
+from advisor.range_engine.cards import Hand, Card
+from advisor.range_engine.range import Range
 
 
 class RangeEngine(IRangeEngine):

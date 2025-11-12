@@ -14,8 +14,9 @@ from advisor_v2.core.data_structures import (
     RangeAdvantage,
     BoardAnalysis
 )
-from advisor.game_state import Position, Hand
-from advisor.range import Range
+from advisor.strategy_engine.gto_baseline import Position
+from advisor.range_engine.cards import Hand
+from advisor.range_engine.range import Range
 
 
 # ============================================================================

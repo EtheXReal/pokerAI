@@ -9,8 +9,16 @@ from typing import Dict, Optional, List, Any
 from enum import Enum
 
 # 复用advisor的基础类型
-from advisor.game_state import Position, Hand, Action
-from advisor.range import Range
+from advisor.strategy_engine.gto_baseline import Position
+from advisor.range_engine.cards import Hand, Card
+from advisor.range_engine.range import Range
+
+# Action需要定义（advisor中没有统一的Action类）
+@dataclass
+class Action:
+    """行动类"""
+    action: str  # 'fold', 'call', 'raise', 'bet', 'check'
+    amount: float = 0.0
 
 
 # ============================================================================

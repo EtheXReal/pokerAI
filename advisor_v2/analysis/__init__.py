@@ -9,11 +9,11 @@ Analysis模块
 
 # 分析组件实现
 from advisor_v2.analysis.range_engine import RangeEngine
-# from advisor_v2.analysis.equity_engine import EquityEngine
-# from advisor_v2.analysis.board_analyzer import BoardAnalyzer
+from advisor_v2.analysis.equity_engine import EquityEngine
+from advisor_v2.analysis.board_analyzer import BoardAnalyzer
 
 __all__ = [
     "RangeEngine",
-    # "EquityEngine",
-    # "BoardAnalyzer",
+    "EquityEngine",
+    "BoardAnalyzer",
 ]

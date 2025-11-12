@@ -221,8 +221,13 @@ def run_betting_round(
     ai_acts_first = (ai_position == 'BB')
 
     # 当前街道的投入（用于计算facing bet）
-    street_ai_invested = 0
-    street_random_invested = 0
+    # Preflop: 包括盲注；其他街道：从0开始
+    if street == 'preflop':
+        street_ai_invested = ai_invested
+        street_random_invested = random_invested
+    else:
+        street_ai_invested = 0
+        street_random_invested = 0
 
     # 行动循环
     last_aggressor = None  # 最后一个下注/加注的人

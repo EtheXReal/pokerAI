@@ -14,9 +14,35 @@ from collections import OrderedDict
 
 from advisor_v2.core.interfaces.analysis_interface import IEquityEngine
 from advisor_v2.core.data_structures import EquityInfo
-from advisor.range_engine.cards import Hand, Card, Deck
+from advisor.range_engine.cards import Hand, Card, Rank, Suit
 from advisor.range_engine.range import Range
-from advisor.range_engine.evaluator import Evaluator
+from advisor.range_engine.evaluator import HandEvaluator
+
+
+class Deck:
+    """
+    简单的Deck实现（用于Monte Carlo模拟）
+    """
+
+    def __init__(self):
+        """初始化52张牌的deck"""
+        self.cards = []
+        for rank in Rank:
+            for suit in Suit:
+                self.cards.append(Card(rank, suit))
+        random.shuffle(self.cards)
+
+    def remove_card(self, card: Card):
+        """移除已知牌"""
+        # 找到并移除
+        for i, c in enumerate(self.cards):
+            if c.rank == card.rank and c.suit == card.suit:
+                self.cards.pop(i)
+                return
+
+    def draw(self) -> Card:
+        """抽一张牌"""
+        return self.cards.pop()
 
 
 class LRUCache:
@@ -114,7 +140,7 @@ class EquityEngine(IEquityEngine):
             cache_size: 缓存大小
         """
         self.cache = LRUCache(max_size=cache_size)
-        self.evaluator = Evaluator()
+        self.evaluator = HandEvaluator()
 
     def calculate_equity(self, hand: Hand, villain_range: Range, board: List,
                         iterations: int = 200) -> EquityInfo:

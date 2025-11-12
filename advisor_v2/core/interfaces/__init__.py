@@ -16,6 +16,7 @@ from advisor_v2.core.interfaces.analysis_interface import (
 )
 from advisor_v2.core.interfaces.model_interface import IOpponentModel
 from advisor_v2.core.interfaces.exploit_interface import IExploitEngine
+from advisor_v2.core.interfaces.integration_interface import IDecisionIntegrator
 
 __all__ = [
     "IStrategy",
@@ -24,4 +25,5 @@ __all__ = [
     "IBoardAnalyzer",
     "IOpponentModel",
     "IExploitEngine",
+    "IDecisionIntegrator",
 ]

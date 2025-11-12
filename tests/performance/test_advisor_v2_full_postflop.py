@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 advisor_v2完整翻后测试 - 真正的德州扑克
-包含完整的preflop/flop/turn/river决策流程
+包含完整的preflop/flop/turn/river决策流程，支持多轮加注
 
 与test_advisor_v2_vs_random_32hands.py的关键区别：
 - 旧测试：只有翻前决策，然后直接showdown（假扑克）
@@ -11,6 +11,7 @@ advisor_v2完整翻后测试 - 真正的德州扑克
 - EquityEngine需要board来计算equity
 - BoardAnalyzer需要board来分析texture
 - Range advantage分析需要翻后的equity分布
+- 支持多轮加注（bet → raise → 3-bet → 4-bet...）
 """
 import sys
 import os
@@ -193,10 +194,185 @@ class SimpleRandomPlayer:
                 return 'check', 0.0
 
 
+def run_betting_round(
+    street: str,
+    ai_player: AdvisorV2Player,
+    random_player: SimpleRandomPlayer,
+    ai_position: str,
+    ai_hand: Hand,
+    random_hand: Hand,
+    board: Board,
+    pot: float,
+    ai_stack: float,
+    random_stack: float,
+    ai_invested: float,
+    random_invested: float,
+    actions: List[StreetAction],
+    verbose: bool = True
+) -> Tuple[Optional[str], float, float, float, float, float]:
+    """
+    运行一个完整的betting round（支持多轮加注）
+
+    Returns:
+        (winner, pot, ai_stack, random_stack, ai_invested, random_invested)
+        winner: 'AI', 'Random', or None (继续游戏)
+    """
+    # 确定谁先行动（OOP先行动）
+    ai_acts_first = (ai_position == 'BB')
+
+    # 当前街道的投入（用于计算facing bet）
+    street_ai_invested = 0
+    street_random_invested = 0
+
+    # 行动循环
+    last_aggressor = None  # 最后一个下注/加注的人
+    num_actions = 0
+    max_actions = 20  # 防止无限循环
+
+    while num_actions < max_actions:
+        num_actions += 1
+
+        # 确定当前行动的玩家
+        if num_actions == 1:
+            current_player = 'AI' if ai_acts_first else 'Random'
+        else:
+            # 轮流行动
+            if actions[-1].player == 'AI':
+                current_player = 'Random'
+            else:
+                current_player = 'AI'
+
+        # 计算facing bet
+        if current_player == 'AI':
+            facing_bet = street_random_invested
+            to_call = max(0, street_random_invested - street_ai_invested)
+        else:
+            facing_bet = street_ai_invested
+            to_call = max(0, street_ai_invested - street_random_invested)
+
+        # 获取决策
+        if current_player == 'AI':
+            action_type, amount = ai_player.decide(
+                street=street,
+                position=ai_position,
+                hand=ai_hand,
+                board=board,
+                pot_size=pot,
+                effective_stack=min(ai_stack, random_stack),
+                hero_stack=ai_stack,
+                facing_bet=facing_bet,
+                bet_to_call=to_call
+            )
+        else:
+            action_type, amount = random_player.decide(pot, facing_bet, random_stack)
+
+        # 处理action
+        if action_type == 'fold':
+            actions.append(StreetAction(street, current_player, 'fold', 0, pot))
+            if verbose:
+                print(f"  {current_player} folds")
+            winner = 'Random' if current_player == 'AI' else 'AI'
+            return (winner, pot, ai_stack, random_stack, ai_invested, random_invested)
+
+        elif action_type == 'check':
+            actions.append(StreetAction(street, current_player, 'check', 0, pot))
+            if verbose:
+                print(f"  {current_player} checks")
+
+            # 如果双方都check，结束这个street
+            if len(actions) >= 2 and actions[-2].action == 'check' and actions[-2].street == street:
+                return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+
+            # 如果是第一个行动的人check，继续
+            continue
+
+        elif action_type == 'call':
+            if current_player == 'AI':
+                call_amount = to_call
+                ai_invested += call_amount
+                ai_stack -= call_amount
+                street_ai_invested += call_amount
+            else:
+                call_amount = to_call
+                random_invested += call_amount
+                random_stack -= call_amount
+                street_random_invested += call_amount
+
+            pot += call_amount
+            actions.append(StreetAction(street, current_player, 'call', call_amount, pot))
+            if verbose:
+                print(f"  {current_player} calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+
+            # Call结束这个betting round
+            return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+
+        elif action_type == 'bet':
+            bet_amount = min(amount, ai_stack if current_player == 'AI' else random_stack)
+
+            if current_player == 'AI':
+                ai_invested += bet_amount
+                ai_stack -= bet_amount
+                street_ai_invested += bet_amount
+            else:
+                random_invested += bet_amount
+                random_stack -= bet_amount
+                street_random_invested += bet_amount
+
+            pot += bet_amount
+            actions.append(StreetAction(street, current_player, f'bet {bet_amount:.1f}BB', bet_amount, pot))
+            if verbose:
+                print(f"  {current_player} bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
+
+            last_aggressor = current_player
+            continue
+
+        elif action_type == 'raise':
+            # amount是"想要raise的增量金额"（相对于pot或facing bet）
+            # 需要投入 = call amount + raise amount
+
+            # 先计算需要call多少
+            call_amt = to_call
+
+            # 计算raise的增量（限制在剩余stack范围内）
+            current_stack = ai_stack if current_player == 'AI' else random_stack
+            raise_amt = min(amount, current_stack - call_amt)
+            if raise_amt < 0:
+                raise_amt = 0
+
+            # 总共需要投入
+            total_amt = call_amt + raise_amt
+
+            if current_player == 'AI':
+                ai_invested += total_amt
+                ai_stack -= total_amt
+                street_ai_invested += total_amt
+            else:
+                random_invested += total_amt
+                random_stack -= total_amt
+                street_random_invested += total_amt
+
+            pot += total_amt
+
+            # raise到的总额是：原facing_bet + raise增量
+            raise_to = facing_bet + raise_amt
+
+            actions.append(StreetAction(street, current_player, f'raise to {raise_to:.1f}BB', total_amt, pot))
+            if verbose:
+                print(f"  {current_player} raises to {raise_to:.1f}BB, pot={pot:.1f}BB")
+
+            last_aggressor = current_player
+            continue
+
+    # 如果达到max_actions，结束（防御性代码）
+    if verbose:
+        print(f"  [Warning: Reached max actions in betting round]")
+    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+
+
 def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: SimpleRandomPlayer,
                    ai_position: str, starting_stack: float = 100.0, verbose: bool = True) -> FullHandRecord:
     """
-    玩一手完整的牌（包含翻前+flop+turn+river）
+    玩一手完整的牌（包含翻前+flop+turn+river，支持多轮加注）
 
     Args:
         hand_num: 手牌编号
@@ -248,135 +424,29 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
         print(f"  Pot: {pot:.1f}BB")
 
     # ===== 翻前 =====
-    # 翻前行动（简化：只有一轮）
-    if ai_position == 'BTN':
-        # AI先行动
-        ai_action, ai_amount = ai_player.decide(
-            street='preflop',
-            position='BTN',
-            hand=ai_hand,
-            board=Board([]),
-            pot_size=pot,
-            effective_stack=min(ai_stack, random_stack),
-            hero_stack=ai_stack,
-            facing_bet=0,
-            bet_to_call=bb - sb
+    winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
+        street='preflop',
+        ai_player=ai_player,
+        random_player=random_player,
+        ai_position=ai_position,
+        ai_hand=ai_hand,
+        random_hand=random_hand,
+        board=Board([]),
+        pot=pot,
+        ai_stack=ai_stack,
+        random_stack=random_stack,
+        ai_invested=ai_invested,
+        random_invested=random_invested,
+        actions=actions,
+        verbose=verbose
+    )
+
+    if winner:
+        profit = pot - ai_invested if winner == 'AI' else -ai_invested
+        return FullHandRecord(
+            hand_num, ai_position, str(ai_hand), str(random_hand),
+            [], '', '', actions, winner, profit, pot, False
         )
-
-        if ai_action == 'fold':
-            actions.append(StreetAction('preflop', 'AI', 'fold', 0, pot))
-            if verbose:
-                print(f"  AI folds")
-            return FullHandRecord(
-                hand_num, ai_position, str(ai_hand), str(random_hand),
-                [], '', '', actions, 'Random', -ai_invested, pot, False
-            )
-        elif ai_action == 'call':
-            # Limp（补到bb）
-            call_amount = bb - ai_invested
-            ai_invested += call_amount
-            ai_stack -= call_amount
-            pot += call_amount
-            actions.append(StreetAction('preflop', 'AI', 'call', call_amount, pot))
-            if verbose:
-                print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-        else:  # raise
-            # Open raise
-            raise_to = max(ai_amount, bb * 2.5)
-            raise_amount = raise_to - ai_invested
-            ai_invested += raise_amount
-            ai_stack -= raise_amount
-            pot += raise_amount
-            actions.append(StreetAction('preflop', 'AI', f'raise to {raise_to:.1f}BB', raise_amount, pot))
-            if verbose:
-                print(f"  AI raises to {raise_to:.1f}BB, pot={pot:.1f}BB")
-
-            # Random响应
-            facing_bet = raise_to - random_invested
-            random_action, random_amount = random_player.decide(pot, facing_bet, random_stack)
-
-            if random_action == 'fold':
-                actions.append(StreetAction('preflop', 'Random', 'fold', 0, pot))
-                if verbose:
-                    print(f"  Random folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    [], '', '', actions, 'AI', pot - ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = raise_to - random_invested
-                random_invested += call_amount
-                random_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('preflop', 'Random', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-    else:  # AI在BB
-        # Random先行动
-        random_action, random_amount = random_player.decide(pot, bb - sb, random_stack)
-
-        if random_action == 'fold':
-            actions.append(StreetAction('preflop', 'Random', 'fold', 0, pot))
-            if verbose:
-                print(f"  Random folds")
-            return FullHandRecord(
-                hand_num, ai_position, str(ai_hand), str(random_hand),
-                [], '', '', actions, 'AI', pot - ai_invested, pot, False
-            )
-        elif random_action == 'call':
-            call_amount = bb - random_invested
-            random_invested += call_amount
-            random_stack -= call_amount
-            pot += call_amount
-            actions.append(StreetAction('preflop', 'Random', 'call', call_amount, pot))
-            if verbose:
-                print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # AI可以check或raise（简化：AI总是check）
-            actions.append(StreetAction('preflop', 'AI', 'check', 0, pot))
-            if verbose:
-                print(f"  AI checks")
-
-        else:  # Random raise
-            raise_to = max(random_amount, bb * 2.5)
-            raise_amount = raise_to - random_invested
-            random_invested += raise_amount
-            random_stack -= raise_amount
-            pot += raise_amount
-            actions.append(StreetAction('preflop', 'Random', f'raise to {raise_to:.1f}BB', raise_amount, pot))
-            if verbose:
-                print(f"  Random raises to {raise_to:.1f}BB, pot={pot:.1f}BB")
-
-            # AI响应
-            ai_action, ai_amount = ai_player.decide(
-                street='preflop',
-                position='BB',
-                hand=ai_hand,
-                board=Board([]),
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=raise_to,
-                bet_to_call=raise_to - ai_invested
-            )
-
-            if ai_action == 'fold':
-                actions.append(StreetAction('preflop', 'AI', 'fold', 0, pot))
-                if verbose:
-                    print(f"  AI folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    [], '', '', actions, 'Random', -ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = raise_to - ai_invested
-                ai_invested += call_amount
-                ai_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('preflop', 'AI', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
 
     # ===== Flop =====
     flop_cards = board_cards[0:3]
@@ -387,196 +457,29 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
         print(f"\n  === Flop: {' '.join(flop_str)} ===")
         print(f"  Pot: {pot:.1f}BB")
 
-    # Flop行动（OOP先行动）- 简化版本，只有一轮行动
-    if ai_position == 'BB':  # AI OOP
-        # AI先行动
-        ai_action, ai_amount = ai_player.decide(
-            street='flop',
-            position='BB',
-            hand=ai_hand,
-            board=board,
-            pot_size=pot,
-            effective_stack=min(ai_stack, random_stack),
-            hero_stack=ai_stack,
-            facing_bet=0,
-            bet_to_call=0
+    winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
+        street='flop',
+        ai_player=ai_player,
+        random_player=random_player,
+        ai_position=ai_position,
+        ai_hand=ai_hand,
+        random_hand=random_hand,
+        board=board,
+        pot=pot,
+        ai_stack=ai_stack,
+        random_stack=random_stack,
+        ai_invested=ai_invested,
+        random_invested=random_invested,
+        actions=actions,
+        verbose=verbose
+    )
+
+    if winner:
+        profit = pot - ai_invested if winner == 'AI' else -ai_invested
+        return FullHandRecord(
+            hand_num, ai_position, str(ai_hand), str(random_hand),
+            flop_str, '', '', actions, winner, profit, pot, False
         )
-
-        if ai_action == 'bet':
-            bet_amount = min(ai_amount, ai_stack)
-            ai_invested += bet_amount
-            ai_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('flop', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # Random响应
-            random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-            if random_action == 'fold':
-                actions.append(StreetAction('flop', 'Random', 'fold', 0, pot))
-                if verbose:
-                    print(f"  Random folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                random_invested += call_amount
-                random_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('flop', 'Random', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('flop', 'AI', 'check', 0, pot))
-            if verbose:
-                print(f"  AI checks")
-
-            # Random行动
-            random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-            if random_action == 'bet':
-                bet_amount = min(random_amount, random_stack)
-                random_invested += bet_amount
-                random_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('flop', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # AI响应
-                ai_action, ai_amount = ai_player.decide(
-                    street='flop',
-                    position='BB',
-                    hand=ai_hand,
-                    board=board,
-                    pot_size=pot,
-                    effective_stack=min(ai_stack, random_stack),
-                    hero_stack=ai_stack,
-                    facing_bet=bet_amount,
-                    bet_to_call=bet_amount
-                )
-
-                if ai_action == 'fold':
-                    actions.append(StreetAction('flop', 'AI', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  AI folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, '', '', actions, 'Random', -ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    ai_invested += call_amount
-                    ai_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('flop', 'AI', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('flop', 'Random', 'check', 0, pot))
-                if verbose:
-                    print(f"  Random checks")
-
-    else:  # AI IP (BTN)
-        # Random先行动（OOP）
-        random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-        if random_action == 'bet':
-            bet_amount = min(random_amount, random_stack)
-            random_invested += bet_amount
-            random_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('flop', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # AI响应
-            ai_action, ai_amount = ai_player.decide(
-                street='flop',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=bet_amount,
-                bet_to_call=bet_amount
-            )
-
-            if ai_action == 'fold':
-                actions.append(StreetAction('flop', 'AI', 'fold', 0, pot))
-                if verbose:
-                    print(f"  AI folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, '', '', actions, 'Random', -ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                ai_invested += call_amount
-                ai_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('flop', 'AI', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('flop', 'Random', 'check', 0, pot))
-            if verbose:
-                print(f"  Random checks")
-
-            # AI行动
-            ai_action, ai_amount = ai_player.decide(
-                street='flop',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=0,
-                bet_to_call=0
-            )
-
-            if ai_action == 'bet':
-                bet_amount = min(ai_amount, ai_stack)
-                ai_invested += bet_amount
-                ai_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('flop', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # Random响应
-                random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-                if random_action == 'fold':
-                    actions.append(StreetAction('flop', 'Random', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  Random folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, '', '', actions, 'AI', pot - ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    random_invested += call_amount
-                    random_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('flop', 'Random', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('flop', 'AI', 'check', 0, pot))
-                if verbose:
-                    print(f"  AI checks")
 
     # ===== Turn =====
     turn_card = board_cards[3]
@@ -588,196 +491,29 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
         print(f"  Board: {' '.join(flop_str)} {turn_str}")
         print(f"  Pot: {pot:.1f}BB")
 
-    # Turn行动（简化版本）
-    if ai_position == 'BB':  # AI OOP
-        # AI先行动
-        ai_action, ai_amount = ai_player.decide(
-            street='turn',
-            position='BB',
-            hand=ai_hand,
-            board=board,
-            pot_size=pot,
-            effective_stack=min(ai_stack, random_stack),
-            hero_stack=ai_stack,
-            facing_bet=0,
-            bet_to_call=0
+    winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
+        street='turn',
+        ai_player=ai_player,
+        random_player=random_player,
+        ai_position=ai_position,
+        ai_hand=ai_hand,
+        random_hand=random_hand,
+        board=board,
+        pot=pot,
+        ai_stack=ai_stack,
+        random_stack=random_stack,
+        ai_invested=ai_invested,
+        random_invested=random_invested,
+        actions=actions,
+        verbose=verbose
+    )
+
+    if winner:
+        profit = pot - ai_invested if winner == 'AI' else -ai_invested
+        return FullHandRecord(
+            hand_num, ai_position, str(ai_hand), str(random_hand),
+            flop_str, turn_str, '', actions, winner, profit, pot, False
         )
-
-        if ai_action == 'bet':
-            bet_amount = min(ai_amount, ai_stack)
-            ai_invested += bet_amount
-            ai_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('turn', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # Random响应
-            random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-            if random_action == 'fold':
-                actions.append(StreetAction('turn', 'Random', 'fold', 0, pot))
-                if verbose:
-                    print(f"  Random folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, turn_str, '', actions, 'AI', pot - ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                random_invested += call_amount
-                random_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('turn', 'Random', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
-            if verbose:
-                print(f"  AI checks")
-
-            # Random行动
-            random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-            if random_action == 'bet':
-                bet_amount = min(random_amount, random_stack)
-                random_invested += bet_amount
-                random_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('turn', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # AI响应
-                ai_action, ai_amount = ai_player.decide(
-                    street='turn',
-                    position='BB',
-                    hand=ai_hand,
-                    board=board,
-                    pot_size=pot,
-                    effective_stack=min(ai_stack, random_stack),
-                    hero_stack=ai_stack,
-                    facing_bet=bet_amount,
-                    bet_to_call=bet_amount
-                )
-
-                if ai_action == 'fold':
-                    actions.append(StreetAction('turn', 'AI', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  AI folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, turn_str, '', actions, 'Random', -ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    ai_invested += call_amount
-                    ai_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('turn', 'AI', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
-                if verbose:
-                    print(f"  Random checks")
-
-    else:  # AI IP (BTN)
-        # Random先行动（OOP）
-        random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-        if random_action == 'bet':
-            bet_amount = min(random_amount, random_stack)
-            random_invested += bet_amount
-            random_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('turn', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # AI响应
-            ai_action, ai_amount = ai_player.decide(
-                street='turn',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=bet_amount,
-                bet_to_call=bet_amount
-            )
-
-            if ai_action == 'fold':
-                actions.append(StreetAction('turn', 'AI', 'fold', 0, pot))
-                if verbose:
-                    print(f"  AI folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, turn_str, '', actions, 'Random', -ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                ai_invested += call_amount
-                ai_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('turn', 'AI', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('turn', 'Random', 'check', 0, pot))
-            if verbose:
-                print(f"  Random checks")
-
-            # AI行动
-            ai_action, ai_amount = ai_player.decide(
-                street='turn',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=0,
-                bet_to_call=0
-            )
-
-            if ai_action == 'bet':
-                bet_amount = min(ai_amount, ai_stack)
-                ai_invested += bet_amount
-                ai_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('turn', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # Random响应
-                random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-                if random_action == 'fold':
-                    actions.append(StreetAction('turn', 'Random', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  Random folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, turn_str, '', actions, 'AI', pot - ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    random_invested += call_amount
-                    random_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('turn', 'Random', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('turn', 'AI', 'check', 0, pot))
-                if verbose:
-                    print(f"  AI checks")
 
     # ===== River =====
     river_card = board_cards[4]
@@ -789,196 +525,29 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
         print(f"  Board: {' '.join(flop_str)} {turn_str} {river_str}")
         print(f"  Pot: {pot:.1f}BB")
 
-    # River行动（简化版本）
-    if ai_position == 'BB':  # AI OOP
-        # AI先行动
-        ai_action, ai_amount = ai_player.decide(
-            street='river',
-            position='BB',
-            hand=ai_hand,
-            board=board,
-            pot_size=pot,
-            effective_stack=min(ai_stack, random_stack),
-            hero_stack=ai_stack,
-            facing_bet=0,
-            bet_to_call=0
+    winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
+        street='river',
+        ai_player=ai_player,
+        random_player=random_player,
+        ai_position=ai_position,
+        ai_hand=ai_hand,
+        random_hand=random_hand,
+        board=board,
+        pot=pot,
+        ai_stack=ai_stack,
+        random_stack=random_stack,
+        ai_invested=ai_invested,
+        random_invested=random_invested,
+        actions=actions,
+        verbose=verbose
+    )
+
+    if winner:
+        profit = pot - ai_invested if winner == 'AI' else -ai_invested
+        return FullHandRecord(
+            hand_num, ai_position, str(ai_hand), str(random_hand),
+            flop_str, turn_str, river_str, actions, winner, profit, pot, False
         )
-
-        if ai_action == 'bet':
-            bet_amount = min(ai_amount, ai_stack)
-            ai_invested += bet_amount
-            ai_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('river', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # Random响应
-            random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-            if random_action == 'fold':
-                actions.append(StreetAction('river', 'Random', 'fold', 0, pot))
-                if verbose:
-                    print(f"  Random folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, turn_str, river_str, actions, 'AI', pot - ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                random_invested += call_amount
-                random_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('river', 'Random', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('river', 'AI', 'check', 0, pot))
-            if verbose:
-                print(f"  AI checks")
-
-            # Random行动
-            random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-            if random_action == 'bet':
-                bet_amount = min(random_amount, random_stack)
-                random_invested += bet_amount
-                random_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('river', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # AI响应
-                ai_action, ai_amount = ai_player.decide(
-                    street='river',
-                    position='BB',
-                    hand=ai_hand,
-                    board=board,
-                    pot_size=pot,
-                    effective_stack=min(ai_stack, random_stack),
-                    hero_stack=ai_stack,
-                    facing_bet=bet_amount,
-                    bet_to_call=bet_amount
-                )
-
-                if ai_action == 'fold':
-                    actions.append(StreetAction('river', 'AI', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  AI folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, turn_str, river_str, actions, 'Random', -ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    ai_invested += call_amount
-                    ai_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('river', 'AI', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('river', 'Random', 'check', 0, pot))
-                if verbose:
-                    print(f"  Random checks")
-
-    else:  # AI IP (BTN)
-        # Random先行动（OOP）
-        random_action, random_amount = random_player.decide(pot, 0, random_stack)
-
-        if random_action == 'bet':
-            bet_amount = min(random_amount, random_stack)
-            random_invested += bet_amount
-            random_stack -= bet_amount
-            pot += bet_amount
-            actions.append(StreetAction('river', 'Random', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-            if verbose:
-                print(f"  Random bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-            # AI响应
-            ai_action, ai_amount = ai_player.decide(
-                street='river',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=bet_amount,
-                bet_to_call=bet_amount
-            )
-
-            if ai_action == 'fold':
-                actions.append(StreetAction('river', 'AI', 'fold', 0, pot))
-                if verbose:
-                    print(f"  AI folds")
-                return FullHandRecord(
-                    hand_num, ai_position, str(ai_hand), str(random_hand),
-                    flop_str, turn_str, river_str, actions, 'Random', -ai_invested, pot, False
-                )
-            else:  # call
-                call_amount = bet_amount
-                ai_invested += call_amount
-                ai_stack -= call_amount
-                pot += call_amount
-                actions.append(StreetAction('river', 'AI', 'call', call_amount, pot))
-                if verbose:
-                    print(f"  AI calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-        else:  # check
-            actions.append(StreetAction('river', 'Random', 'check', 0, pot))
-            if verbose:
-                print(f"  Random checks")
-
-            # AI行动
-            ai_action, ai_amount = ai_player.decide(
-                street='river',
-                position='BTN',
-                hand=ai_hand,
-                board=board,
-                pot_size=pot,
-                effective_stack=min(ai_stack, random_stack),
-                hero_stack=ai_stack,
-                facing_bet=0,
-                bet_to_call=0
-            )
-
-            if ai_action == 'bet':
-                bet_amount = min(ai_amount, ai_stack)
-                ai_invested += bet_amount
-                ai_stack -= bet_amount
-                pot += bet_amount
-                actions.append(StreetAction('river', 'AI', f'bet {bet_amount:.1f}BB', bet_amount, pot))
-                if verbose:
-                    print(f"  AI bets {bet_amount:.1f}BB, pot={pot:.1f}BB")
-
-                # Random响应
-                random_action, random_amount = random_player.decide(pot, bet_amount, random_stack)
-
-                if random_action == 'fold':
-                    actions.append(StreetAction('river', 'Random', 'fold', 0, pot))
-                    if verbose:
-                        print(f"  Random folds")
-                    return FullHandRecord(
-                        hand_num, ai_position, str(ai_hand), str(random_hand),
-                        flop_str, turn_str, river_str, actions, 'AI', pot - ai_invested, pot, False
-                    )
-                else:  # call
-                    call_amount = bet_amount
-                    random_invested += call_amount
-                    random_stack -= call_amount
-                    pot += call_amount
-                    actions.append(StreetAction('river', 'Random', 'call', call_amount, pot))
-                    if verbose:
-                        print(f"  Random calls {call_amount:.1f}BB, pot={pot:.1f}BB")
-
-            else:  # check
-                actions.append(StreetAction('river', 'AI', 'check', 0, pot))
-                if verbose:
-                    print(f"  AI checks")
 
     # ===== Showdown =====
     if verbose:
@@ -1021,12 +590,13 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
 def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
     """运行完整测试"""
     print('=' * 80)
-    print('🤖 advisor_v2 vs Random - 完整翻后测试（真扑克）')
+    print('🤖 advisor_v2 vs Random - 完整翻后测试（真扑克 + 多轮加注）')
     print('=' * 80)
     print(f'\n配置:')
     print(f'  手数: {num_hands}')
     print(f'  线程数: {num_threads}')
     print(f'  包含: 翻前 + Flop + Turn + River 完整决策')
+    print(f'  支持: 多轮加注（bet → raise → 3-bet → 4-bet...）')
     print(f'  架构: DecisionIntegrator (RangeEngine + EquityEngine + BoardAnalyzer + GTOStrategy)')
     print(f'  开始时间: {time.strftime("%Y-%m-%d %H:%M:%S")}')
 
@@ -1106,16 +676,16 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False):
 
     # 对比旧测试（假扑克）
     print('\n' + '=' * 80)
-    print('🔍 真扑克 vs 假扑克对比')
+    print('🔍 完整测试 vs 简化测试对比')
     print('=' * 80)
-    print(f'\n本测试（真扑克 - 完整4街）:')
+    print(f'\n本测试（完整多轮加注）:')
     print(f'  整体 BB/100: {(ai_total / len(results)) * 100:+.2f}')
     print(f'  BTN BB/100:  {(ai_btn_total / len(ai_btn_results)) * 100:+.2f}')
     print(f'  BB BB/100:   {(ai_bb_total / len(ai_bb_results)) * 100:+.2f}')
-    print(f'\n旧测试（假扑克 - 只有翻前）:')
-    print(f'  整体 BB/100: +22.62  (来自test_advisor_v2_vs_random_32hands.py 500手结果)')
-    print(f'  BTN BB/100:  +8.85')
-    print(f'  BB BB/100:   +36.39')
+    print(f'\n简化测试（单轮行动）:')
+    print(f'  整体 BB/100: +633.44  (修复EquityEngine后的单轮测试)')
+    print(f'  BTN BB/100:  +1078.07')
+    print(f'  BB BB/100:   +188.81')
 
     # 保存详细报告
     output_file = f'/home/user/pokerAI/test_advisor_v2_full_postflop_{num_hands}hands_result.txt'

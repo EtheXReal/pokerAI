@@ -121,13 +121,14 @@ class GTOBaseline:
         3. Fold - 弱牌
         """
         # Raise阈值 - 位置越好，开池范围越宽
+        # Phase 1 Fix: 扩大BTN/CO开池范围，符合GTO标准
         raise_thresholds = {
             Position.UTG: 0.75,  # 只开最好的25%
-            Position.MP: 0.70,
-            Position.CO: 0.65,
-            Position.BTN: 0.50,  # BTN可以开50%
-            Position.SB: 0.60,
-            Position.BB: 1.0,  # BB已经投入，不用开池
+            Position.MP: 0.70,   # 开30%
+            Position.CO: 0.40,   # 开60% (修复：0.65→0.40)
+            Position.BTN: 0.25,  # 开75% (修复：0.50→0.25) - GTO标准
+            Position.SB: 0.50,   # 开50%
+            Position.BB: 1.0,    # BB已经投入，不用开池
         }
 
         # Limp阈值 - 修复Bug #2: BTN/CO/UTG/MP取消limp，SB收紧
@@ -136,8 +137,8 @@ class GTOBaseline:
         limp_thresholds = {
             Position.UTG: 0.75,  # = raise threshold，取消limp
             Position.MP: 0.70,   # = raise threshold，取消limp
-            Position.CO: 0.65,   # = raise threshold，取消limp
-            Position.BTN: 0.50,  # = raise threshold，取消limp（修复：0.35→0.50）
+            Position.CO: 0.40,   # = raise threshold，取消limp (修复：0.65→0.40)
+            Position.BTN: 0.25,  # = raise threshold，取消limp (修复：0.50→0.25)
             Position.SB: 0.50,   # 收紧limp范围（修复：0.40→0.50）
             Position.BB: 0.30,   # BB保留（免费看flop）
         }
@@ -360,6 +361,10 @@ class GTOBaseline:
         主动策略（未面对下注）
 
         基于Equity、Range优势、位置
+
+        Phase 1 Fix:
+        1. 降低value_threshold: 0.65→0.50 (OOP), 0.55→0.45 (IP)
+        2. 移除中等牌硬编码，改用bet_frequency计算
         """
         # 计算下注频率
         bet_frequency = self._calculate_bet_frequency(ctx)
@@ -370,18 +375,21 @@ class GTOBaseline:
         else:
             bluff_freq = 0.0
 
-        # Equity门槛
-        value_threshold = 0.65 - (0.1 if ctx.is_in_position else 0.0)
+        # Equity门槛 - Phase 1 Fix: 降低threshold扩大value betting range
+        value_threshold = 0.50 - (0.05 if ctx.is_in_position else 0.0)
+        # OOP: 0.50 (修复：0.65→0.50), IP: 0.45 (修复：0.55→0.45)
 
         if ctx.equity >= value_threshold:
-            # 强牌：价值下注
+            # 强牌：价值下注（增强频率）
             check_freq = 1.0 - bet_frequency
             bet_freq = bet_frequency
 
         elif ctx.equity >= 0.35:
-            # 中等牌：主要过牌
-            check_freq = 0.8
-            bet_freq = 0.2  # 少量半bluff
+            # 中等牌：Phase 1 Fix - 移除硬编码，改用动态计算
+            # 使用bet_frequency但降低系数（中等牌不如强牌aggressive）
+            adjusted_bet_freq = bet_frequency * 0.6
+            check_freq = 1.0 - adjusted_bet_freq
+            bet_freq = adjusted_bet_freq
 
         else:
             # 弱牌：主要过牌，少量pure bluff

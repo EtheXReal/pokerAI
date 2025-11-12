@@ -2,7 +2,7 @@
 advisor_v2 vs Random - 完整翻后测试结果（2手）
 ================================================================================
 
-测试时间: 2025-11-12 10:30:52
+测试时间: 2025-11-12 10:45:02
 总用时: 0.0秒
 平均每手: 0.01秒
 
@@ -22,19 +22,19 @@ BB位置 (1手): +0.50 BB, BB/100: +50.00
 ================================================================================
 
 Hand #1 - AI Position: BTN
-AI: Th2h, Random: 6d3s
+AI: Tc6h, Random: 4cAh
 Board: (preflop fold)
 
 Actions:
-  [preflop] AI: raise to 2.5BB (pot=3.5BB)
-  [preflop] Random: fold (pot=3.5BB)
+  [preflop] AI: raise to 3.8BB (pot=4.8BB)
+  [preflop] Random: fold (pot=4.8BB)
 
 Result: AI wins, AI profit: +1.00BB
 
 --------------------------------------------------------------------------------
 
 Hand #2 - AI Position: BB
-AI: 9sQh, Random: ThAs
+AI: 2sTs, Random: Qh5c
 Board: (preflop fold)
 
 Actions:

@@ -213,7 +213,8 @@ class EquityEngine(IEquityEngine):
         board_str = ''.join([str(c) for c in board]) if board else 'preflop'
 
         # Range的字符串表示（简化：使用range的手牌数量）
-        range_size = len(villain_range.hands)
+        range_hands = villain_range.to_hands()
+        range_size = len(range_hands)
         range_str = f"range_{range_size}"
 
         return f"{hand_str}_{board_str}_{range_str}"
@@ -232,7 +233,7 @@ class EquityEngine(IEquityEngine):
         Returns:
             Equity (0-1)
         """
-        if not villain_range.hands or len(villain_range.hands) == 0:
+        if not villain_range.to_hands() or len(villain_range.to_hands()) == 0:
             return 0.5  # 空range，返回0.5
 
         wins = 0
@@ -240,7 +241,7 @@ class EquityEngine(IEquityEngine):
         total = 0
 
         # 获取villain的所有可能hands
-        villain_hands = villain_range.hands
+        villain_hands = villain_range.to_hands()
 
         # 如果villain hands太多，采样
         if len(villain_hands) > 100:
@@ -355,7 +356,7 @@ class EquityEngine(IEquityEngine):
         Returns:
             Equity分布字典
         """
-        if not villain_range.hands or len(villain_range.hands) == 0:
+        if not villain_range.to_hands() or len(villain_range.to_hands()) == 0:
             return {'flip': 1.0}
 
         # 对villain range中的每个hand计算equity
@@ -368,7 +369,7 @@ class EquityEngine(IEquityEngine):
             'weak': 0
         }
 
-        villain_hands = villain_range.hands
+        villain_hands = villain_range.to_hands()
         if len(villain_hands) > 50:
             villain_hands = random.sample(villain_hands, 50)
 
@@ -499,11 +500,11 @@ class EquityEngine(IEquityEngine):
         Returns:
             平均equity
         """
-        if not hero_range.hands or not villain_range.hands:
+        if not hero_range.to_hands() or not villain_range.to_hands():
             return 0.5
 
         # 采样（避免计算量过大）
-        hero_sample = hero_range.hands
+        hero_sample = hero_range.to_hands()
         if len(hero_sample) > 20:
             hero_sample = random.sample(hero_sample, 20)
 

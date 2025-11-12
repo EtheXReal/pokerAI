@@ -160,8 +160,8 @@ class RangeEngine(IRangeEngine):
             if cache_key in self.range_cache:
                 return self.range_cache[cache_key]
             else:
-                # BB不能开池
-                return Range.from_string("")
+                # BB不能开池，返回空Range（不能用空字符串）
+                return Range()
 
         # 分析行动历史
         last_action = action_history[-1]
@@ -360,7 +360,7 @@ class RangeEngine(IRangeEngine):
         # 完整实现会调用EquityEngine，但那会导致循环依赖
         # 这里只用于range内部排序，不需要绝对准确
 
-        from advisor.evaluator import Evaluator
+        from advisor.range_engine.evaluator import HandEvaluator as Evaluator
         evaluator = Evaluator()
 
         try:
@@ -459,7 +459,7 @@ class RangeEngine(IRangeEngine):
         Returns:
             -1到1的nut advantage评分
         """
-        from advisor.evaluator import Evaluator
+        from advisor.range_engine.evaluator import HandEvaluator as Evaluator
         evaluator = Evaluator()
 
         hero_hands = hero_range.to_hands()

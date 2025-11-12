@@ -163,10 +163,13 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 获取position
         position = self._convert_position(game_state.position)
 
+        # 转换action_history（GameState的action_history是string list，需要转换为Action list）
+        action_history = self._convert_action_history(game_state)
+
         # 获取hero GTO range
         hero_range = self.range_engine.get_ideal_range(
             position=position,
-            action_history=game_state.action_history or []
+            action_history=action_history
         )
 
         # 获取villain range（简化：使用GTO range）
@@ -269,17 +272,8 @@ class DecisionIntegrator(IDecisionIntegrator):
         position = self._convert_position(game_state.position)
         villain_position = self._estimate_villain_position(game_state)
 
-        # 转换action_history
-        action_history = []
-        if game_state.action_history:
-            for action_str in game_state.action_history:
-                # 简化：只记录action类型
-                if action_str in ['fold', 'call', 'check']:
-                    action_history.append(Action(action=action_str, amount=0))
-                elif 'raise' in action_str or 'bet' in action_str:
-                    # 尝试提取金额（如果有）
-                    amount = game_state.facing_bet if game_state.facing_bet else 0
-                    action_history.append(Action(action='raise' if 'raise' in action_str else 'bet', amount=amount))
+        # 转换action_history（使用helper方法）
+        action_history = self._convert_action_history(game_state)
 
         # 构建StrategyContext
         ctx = StrategyContext(
@@ -331,6 +325,31 @@ class DecisionIntegrator(IDecisionIntegrator):
                 amount = 1.0
 
         return Action(action=selected_action_type, amount=amount)
+
+    def _convert_action_history(self, game_state: any) -> List[Action]:
+        """
+        转换action_history从string list到Action list
+
+        GameState的action_history是string list (e.g., ['raise', 'call'])
+        RangeEngine期望Action list
+
+        Args:
+            game_state: GameState
+
+        Returns:
+            Action list
+        """
+        action_history = []
+        if game_state.action_history:
+            for action_str in game_state.action_history:
+                # 简化：只记录action类型
+                if action_str in ['fold', 'call', 'check']:
+                    action_history.append(Action(action=action_str, amount=0))
+                elif 'raise' in action_str or 'bet' in action_str:
+                    # 尝试提取金额（如果有）
+                    amount = game_state.facing_bet if game_state.facing_bet else 0
+                    action_history.append(Action(action='raise' if 'raise' in action_str else 'bet', amount=amount))
+        return action_history
 
     def _convert_position(self, position_str: str) -> Position:
         """

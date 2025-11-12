@@ -11,7 +11,7 @@ BoardAnalyzer - Board texture分析
 from typing import List, Dict, Set
 from advisor_v2.core.interfaces.analysis_interface import IBoardAnalyzer
 from advisor_v2.core.data_structures import BoardAnalysis
-from advisor.range_engine.cards import Card
+from advisor.range_engine.cards import Card, Rank
 
 
 class BoardAnalyzer(IBoardAnalyzer):
@@ -23,9 +23,11 @@ class BoardAnalyzer(IBoardAnalyzer):
 
     def __init__(self):
         """初始化BoardAnalyzer"""
+        # 使用Rank枚举作为键（card.rank是Rank枚举）
         self.rank_values = {
-            '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
-            '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+            Rank.TWO: 2, Rank.THREE: 3, Rank.FOUR: 4, Rank.FIVE: 5,
+            Rank.SIX: 6, Rank.SEVEN: 7, Rank.EIGHT: 8, Rank.NINE: 9,
+            Rank.TEN: 10, Rank.JACK: 11, Rank.QUEEN: 12, Rank.KING: 13, Rank.ACE: 14
         }
 
     def analyze(self, board: List[Card]) -> BoardAnalysis:

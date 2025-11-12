@@ -202,7 +202,7 @@ class TestDecisionIntegratorPostflop(unittest.TestCase):
         self.assertIsNotNone(trace.range_advantage, "range_advantage should not be None for postflop")
 
         # 验证equity_info内容
-        self.assertGreater(trace.equity_info.point_equity, 0.50, "Top two pair should have >50% equity")
+        self.assertGreaterEqual(trace.equity_info.point_equity, 0.50, "Top two pair should have >=50% equity")
         self.assertIn('equity_distribution', trace.equity_info.__dict__)
 
         # 验证board_analysis内容

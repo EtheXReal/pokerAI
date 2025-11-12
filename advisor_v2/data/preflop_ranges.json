@@ -1,0 +1,163 @@
+{
+  "description": "GTO preflop ranges for 5-max cash game (100BB deep)",
+  "source": "Based on GTO solver outputs (GTOWizard, PioSolver approximations)",
+  "version": "1.0",
+
+  "open_ranges": {
+    "BTN": {
+      "description": "BTN open range (~65-75% of hands)",
+      "range": "22+,A2s+,K2s+,Q2s+,J4s+,T6s+,96s+,86s+,75s+,65s,54s,A2o+,K7o+,Q9o+,J9o+,T9o",
+      "frequency": 0.70
+    },
+    "CO": {
+      "description": "CO open range (~45-55% of hands)",
+      "range": "22+,A2s+,K5s+,Q7s+,J8s+,T8s+,97s+,87s,76s,A5o+,K9o+,Q9o+,JTo",
+      "frequency": 0.50
+    },
+    "MP": {
+      "description": "MP open range (~25-30% of hands)",
+      "range": "22+,A2s+,K8s+,Q9s+,J9s+,T9s,A9o+,KTo+,QJo",
+      "frequency": 0.28
+    },
+    "SB": {
+      "description": "SB open range vs BB (~55-65% of hands)",
+      "range": "22+,A2s+,K2s+,Q2s+,J4s+,T6s+,96s+,86s+,75s+,65s,A2o+,K8o+,Q9o+,J9o+,T9o",
+      "frequency": 0.60
+    },
+    "BB": {
+      "description": "BB cannot open (passive position)",
+      "range": "",
+      "frequency": 0.0
+    }
+  },
+
+  "vs_open_3bet_ranges": {
+    "BTN_vs_CO": {
+      "description": "BTN 3-bet vs CO open (~12-15%)",
+      "range": "88+,AJs+,KQs,AQo+",
+      "frequency": 0.13
+    },
+    "BTN_vs_MP": {
+      "description": "BTN 3-bet vs MP open (~10-12%)",
+      "range": "99+,ATs+,KQs,AQo+",
+      "frequency": 0.11
+    },
+    "CO_vs_MP": {
+      "description": "CO 3-bet vs MP open (~10-12%)",
+      "range": "99+,ATs+,KQs,AQo+",
+      "frequency": 0.11
+    },
+    "BB_vs_BTN": {
+      "description": "BB 3-bet vs BTN open (~15-18%)",
+      "range": "77+,A9s+,KTs+,QTs+,JTs,T9s,AJo+,KQo",
+      "frequency": 0.16
+    },
+    "BB_vs_CO": {
+      "description": "BB 3-bet vs CO open (~12-14%)",
+      "range": "88+,ATs+,KQs,AJo+",
+      "frequency": 0.13
+    },
+    "BB_vs_MP": {
+      "description": "BB 3-bet vs MP open (~10-12%)",
+      "range": "99+,ATs+,KQs,AQo+",
+      "frequency": 0.11
+    },
+    "SB_vs_BTN": {
+      "description": "SB 3-bet vs BTN open (~12-14%)",
+      "range": "88+,A9s+,KTs+,QJs,AJo+",
+      "frequency": 0.13
+    },
+    "SB_vs_CO": {
+      "description": "SB 3-bet vs CO open (~10-12%)",
+      "range": "99+,ATs+,KQs,AQo+",
+      "frequency": 0.11
+    }
+  },
+
+  "vs_open_call_ranges": {
+    "BTN_vs_CO": {
+      "description": "BTN call vs CO open (~30-35%)",
+      "range": "22-77,A2s-ATs,K5s+,Q8s+,J8s+,T8s+,98s,87s,76s,65s,A2o-AQo,K9o+,Q9o+,JTo",
+      "frequency": 0.32
+    },
+    "BTN_vs_MP": {
+      "description": "BTN call vs MP open (~25-30%)",
+      "range": "22-88,A2s-A9s,K7s+,Q9s+,J9s+,T9s,98s,A5o-AJo,KTo+,QJo",
+      "frequency": 0.27
+    },
+    "CO_vs_MP": {
+      "description": "CO call vs MP open (~20-25%)",
+      "range": "22-88,A2s-A9s,K8s+,Q9s+,J9s+,T9s,A9o-AJo,KJo+",
+      "frequency": 0.22
+    },
+    "BB_vs_BTN": {
+      "description": "BB call vs BTN open (~45-50%)",
+      "range": "22-66,A2s+,K2s+,Q5s+,J7s+,T7s+,97s+,87s,76s,65s,54s,A2o+,K7o+,Q9o+,J9o+,T9o",
+      "frequency": 0.47
+    },
+    "BB_vs_CO": {
+      "description": "BB call vs CO open (~35-40%)",
+      "range": "22-77,A2s+,K5s+,Q8s+,J8s+,T8s+,98s,87s,76s,A2o+,K9o+,Q9o+,JTo",
+      "frequency": 0.37
+    },
+    "BB_vs_MP": {
+      "description": "BB call vs MP open (~30-35%)",
+      "range": "22-77,A2s+,K7s+,Q9s+,J9s+,T9s,98s,A5o+,K9o+,QTo+,JTo",
+      "frequency": 0.32
+    },
+    "SB_vs_BTN": {
+      "description": "SB call vs BTN open (~25-30%)",
+      "range": "22-77,A2s-A8s,K5s+,Q8s+,J8s+,T8s+,98s,87s,76s,A9o-ATo,KTo+,QJo",
+      "frequency": 0.27
+    },
+    "SB_vs_CO": {
+      "description": "SB call vs CO open (~20-25%)",
+      "range": "22-66,A2s-A9s,K7s+,Q9s+,J9s+,T9s,A9o-AJo,KJo+",
+      "frequency": 0.22
+    }
+  },
+
+  "vs_3bet_4bet_ranges": {
+    "BTN_vs_BB_3bet": {
+      "description": "BTN 4-bet vs BB 3-bet (~8-10%)",
+      "range": "TT+,AQs+,AKo",
+      "frequency": 0.09
+    },
+    "CO_vs_BB_3bet": {
+      "description": "CO 4-bet vs BB 3-bet (~7-9%)",
+      "range": "JJ+,AKs,AKo",
+      "frequency": 0.08
+    }
+  },
+
+  "vs_3bet_call_ranges": {
+    "BTN_vs_BB_3bet": {
+      "description": "BTN call vs BB 3-bet (~15-18%)",
+      "range": "77-99,AJs,KQs,AQo",
+      "frequency": 0.16
+    },
+    "CO_vs_BB_3bet": {
+      "description": "CO call vs BB 3-bet (~12-15%)",
+      "range": "88-TT,ATs+,KQs,AQo",
+      "frequency": 0.13
+    }
+  },
+
+  "postflop_cbet_ranges": {
+    "IP_cbet_range": {
+      "description": "IP cbet range on various boards (~60-70%)",
+      "comment": "Postflop ranges are board-dependent, will be calculated dynamically by RangeEngine"
+    },
+    "OOP_cbet_range": {
+      "description": "OOP cbet range on various boards (~40-50%)",
+      "comment": "OOP bets less frequently due to range and positional disadvantage"
+    }
+  },
+
+  "notes": [
+    "Ranges are for 100BB effective stacks",
+    "Frequencies are approximate and can be adjusted",
+    "Postflop ranges are calculated dynamically based on preflop action and board texture",
+    "These ranges are GTO baselines and will be adjusted based on opponent type in Phase 2"
+  ]
+}

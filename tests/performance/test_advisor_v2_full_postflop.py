@@ -232,6 +232,20 @@ def run_betting_round(
     while num_actions < max_actions:
         num_actions += 1
 
+        # === 检查是否双方都all-in且金额相等 ===
+        if ai_stack <= 0.01 and random_stack <= 0.01:
+            # 双方都all-in，结束betting
+            if verbose:
+                print(f"  [Both players all-in, ending betting round]")
+            return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+
+        if street_ai_invested > 0 and street_random_invested > 0 and street_ai_invested == street_random_invested:
+            # 双方投入相等且都有投入，检查是否都all-in
+            if ai_stack <= 0.01 or random_stack <= 0.01:
+                if verbose:
+                    print(f"  [One player all-in and called, ending betting round]")
+                return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+
         # 确定当前行动的玩家
         if num_actions == 1:
             current_player = 'AI' if ai_acts_first else 'Random'
@@ -241,6 +255,34 @@ def run_betting_round(
                 current_player = 'Random'
             else:
                 current_player = 'AI'
+
+        # 获取当前玩家的stack
+        current_stack = ai_stack if current_player == 'AI' else random_stack
+
+        # === 检查玩家是否还有筹码可以行动 ===
+        if current_stack <= 0.01:
+            # 玩家已all-in，自动check（如果可以）或fold
+            if current_player == 'AI':
+                to_call = max(0, street_random_invested - street_ai_invested)
+            else:
+                to_call = max(0, street_ai_invested - street_random_invested)
+
+            if to_call <= 0.01:
+                # 可以免费check
+                actions.append(StreetAction(street, current_player, 'check (all-in)', 0, pot))
+                if verbose:
+                    print(f"  {current_player} checks (all-in)")
+                # 检查是否双方都check
+                if len(actions) >= 2 and actions[-2].action.startswith('check') and actions[-2].street == street:
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+                continue
+            else:
+                # 必须fold（没钱call）
+                actions.append(StreetAction(street, current_player, 'fold (no chips)', 0, pot))
+                if verbose:
+                    print(f"  {current_player} folds (no chips to call)")
+                winner = 'Random' if current_player == 'AI' else 'AI'
+                return (winner, pot, ai_stack, random_stack, ai_invested, random_invested)
 
         # 计算facing bet
         if current_player == 'AI':
@@ -266,6 +308,38 @@ def run_betting_round(
         else:
             action_type, amount = random_player.decide(pot, facing_bet, random_stack)
 
+        # === Action规范化和验证 ===
+        # 1. 如果面对下注，"bet"应该是"raise"
+        if to_call > 0.01 and action_type == 'bet':
+            action_type = 'raise'
+            if verbose:
+                print(f"  [Normalized: bet -> raise (facing {to_call:.1f}BB)]")
+
+        # 2. 如果不面对下注，"raise"应该是"bet"
+        if to_call <= 0.01 and action_type == 'raise':
+            action_type = 'bet'
+            if verbose:
+                print(f"  [Normalized: raise -> bet (no bet to raise)]")
+
+        # 3. 验证action合法性
+        if action_type == 'check' and to_call > 0.01:
+            # 面对下注不能check，强制fold
+            if verbose:
+                print(f"  [Invalid: check when facing {to_call:.1f}BB, forcing fold]")
+            action_type = 'fold'
+
+        if action_type == 'fold' and to_call <= 0.01:
+            # 不面对下注不应该fold，改为check
+            if verbose:
+                print(f"  [Invalid: fold when can check free, forcing check]")
+            action_type = 'check'
+
+        if action_type == 'bet' and to_call > 0.01:
+            # 面对下注只能fold/call/raise
+            if verbose:
+                print(f"  [Invalid: bet when facing {to_call:.1f}BB, forcing raise]")
+            action_type = 'raise'
+
         # 处理action
         if action_type == 'fold':
             actions.append(StreetAction(street, current_player, 'fold', 0, pot))
@@ -280,20 +354,31 @@ def run_betting_round(
                 print(f"  {current_player} checks")
 
             # 如果双方都check，结束这个street
-            if len(actions) >= 2 and actions[-2].action == 'check' and actions[-2].street == street:
+            if len(actions) >= 2 and actions[-2].action.startswith('check') and actions[-2].street == street:
                 return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
 
             # 如果是第一个行动的人check，继续
             continue
 
         elif action_type == 'call':
+            # 计算实际call金额（不能超过stack）
+            call_amount = min(to_call, current_stack)
+
+            if call_amount <= 0.01:
+                # 实际上是check（没有需要call的）
+                actions.append(StreetAction(street, current_player, 'check', 0, pot))
+                if verbose:
+                    print(f"  {current_player} checks (call 0)")
+                # 检查是否双方都check
+                if len(actions) >= 2 and actions[-2].action.startswith('check') and actions[-2].street == street:
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+                continue
+
             if current_player == 'AI':
-                call_amount = to_call
                 ai_invested += call_amount
                 ai_stack -= call_amount
                 street_ai_invested += call_amount
             else:
-                call_amount = to_call
                 random_invested += call_amount
                 random_stack -= call_amount
                 street_random_invested += call_amount
@@ -307,7 +392,21 @@ def run_betting_round(
             return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
 
         elif action_type == 'bet':
-            bet_amount = min(amount, ai_stack if current_player == 'AI' else random_stack)
+            # Bet只在不面对下注时有效
+            bet_amount = min(amount, current_stack)
+
+            # 防止0BB或过小的bet
+            if bet_amount < 0.5:
+                # 筹码不足以bet，改为check
+                if verbose:
+                    print(f"  [Bet amount too small ({bet_amount:.2f}BB), checking instead]")
+                actions.append(StreetAction(street, current_player, 'check', 0, pot))
+                if verbose:
+                    print(f"  {current_player} checks")
+                # 检查是否双方都check
+                if len(actions) >= 2 and actions[-2].action.startswith('check') and actions[-2].street == street:
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+                continue
 
             if current_player == 'AI':
                 ai_invested += bet_amount
@@ -327,17 +426,43 @@ def run_betting_round(
             continue
 
         elif action_type == 'raise':
-            # amount是"想要raise的增量金额"（相对于pot或facing bet）
-            # 需要投入 = call amount + raise amount
-
             # 先计算需要call多少
             call_amt = to_call
 
             # 计算raise的增量（限制在剩余stack范围内）
-            current_stack = ai_stack if current_player == 'AI' else random_stack
             raise_amt = min(amount, current_stack - call_amt)
-            if raise_amt < 0:
-                raise_amt = 0
+
+            # 如果raise_amt过小或为负，转为call
+            if raise_amt < 0.5:
+                if call_amt <= current_stack:
+                    # 只能call
+                    if verbose:
+                        print(f"  [Raise amount too small, calling instead]")
+                    call_amount = call_amt
+
+                    if current_player == 'AI':
+                        ai_invested += call_amount
+                        ai_stack -= call_amount
+                        street_ai_invested += call_amount
+                    else:
+                        random_invested += call_amount
+                        random_stack -= call_amount
+                        street_random_invested += call_amount
+
+                    pot += call_amount
+                    actions.append(StreetAction(street, current_player, 'call', call_amount, pot))
+                    if verbose:
+                        print(f"  {current_player} calls {call_amount:.1f}BB, pot={pot:.1f}BB")
+                    return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
+                else:
+                    # 连call都不够，fold
+                    if verbose:
+                        print(f"  [Cannot afford to call, folding]")
+                    actions.append(StreetAction(street, current_player, 'fold', 0, pot))
+                    if verbose:
+                        print(f"  {current_player} folds")
+                    winner = 'Random' if current_player == 'AI' else 'AI'
+                    return (winner, pot, ai_stack, random_stack, ai_invested, random_invested)
 
             # 总共需要投入
             total_amt = call_amt + raise_amt

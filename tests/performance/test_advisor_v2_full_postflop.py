@@ -233,15 +233,18 @@ def run_betting_round(
         num_actions += 1
 
         # === 检查是否双方都all-in且金额相等 ===
-        if ai_stack <= 0.01 and random_stack <= 0.01:
+        # All-in阈值：1BB（最小有意义的下注单位）
+        ALLIN_THRESHOLD = 1.0
+
+        if ai_stack <= ALLIN_THRESHOLD and random_stack <= ALLIN_THRESHOLD:
             # 双方都all-in，结束betting
             if verbose:
                 print(f"  [Both players all-in, ending betting round]")
             return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
 
-        if street_ai_invested > 0 and street_random_invested > 0 and street_ai_invested == street_random_invested:
+        if street_ai_invested > 0 and street_random_invested > 0 and abs(street_ai_invested - street_random_invested) < 0.01:
             # 双方投入相等且都有投入，检查是否都all-in
-            if ai_stack <= 0.01 or random_stack <= 0.01:
+            if ai_stack <= ALLIN_THRESHOLD or random_stack <= ALLIN_THRESHOLD:
                 if verbose:
                     print(f"  [One player all-in and called, ending betting round]")
                 return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
@@ -260,8 +263,8 @@ def run_betting_round(
         current_stack = ai_stack if current_player == 'AI' else random_stack
 
         # === 检查玩家是否还有筹码可以行动 ===
-        if current_stack <= 0.01:
-            # 玩家已all-in，没有筹码了
+        if current_stack <= ALLIN_THRESHOLD:
+            # 玩家筹码不足1BB，视为all-in，只能check或fold
             # 计算是否需要call
             if current_player == 'AI':
                 to_call = max(0, street_random_invested - street_ai_invested)
@@ -272,16 +275,16 @@ def run_betting_round(
                 # 可以免费check
                 actions.append(StreetAction(street, current_player, 'check (all-in)', 0, pot))
                 if verbose:
-                    print(f"  {current_player} checks (all-in)")
+                    print(f"  {current_player} checks (all-in, {current_stack:.1f}BB left)")
                 # 检查是否双方都check
                 if len(actions) >= 2 and actions[-2].action.startswith('check') and actions[-2].street == street:
                     return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
                 continue
             else:
-                # 面对下注但没有筹码，只能fold（注意：这里current_stack已经≤0.01，无法all-in）
-                actions.append(StreetAction(street, current_player, 'fold (no chips)', 0, pot))
+                # 面对下注但筹码不足1BB，只能fold
+                actions.append(StreetAction(street, current_player, 'fold (insufficient chips)', 0, pot))
                 if verbose:
-                    print(f"  {current_player} folds (no chips left)")
+                    print(f"  {current_player} folds (only {current_stack:.1f}BB left, cannot call {to_call:.1f}BB)")
                 winner = 'Random' if current_player == 'AI' else 'AI'
                 return (winner, pot, ai_stack, random_stack, ai_invested, random_invested)
 
@@ -364,7 +367,8 @@ def run_betting_round(
         elif action_type == 'call':
             # 计算实际call金额（不能超过stack）
             call_amount = min(to_call, current_stack)
-            is_allin = (call_amount >= current_stack - 0.01)
+            # All-in判断：call后剩余筹码<=1BB
+            is_allin = (current_stack - call_amount <= ALLIN_THRESHOLD)
 
             if call_amount <= 0.01 and not is_allin:
                 # 实际上是check（没有需要call的，且不是all-in）
@@ -424,7 +428,8 @@ def run_betting_round(
         elif action_type == 'bet':
             # Bet只在不面对下注时有效
             bet_amount = min(amount, current_stack)
-            is_allin = (bet_amount >= current_stack - 0.01)
+            # All-in判断：bet后剩余筹码<=1BB
+            is_allin = (current_stack - bet_amount <= ALLIN_THRESHOLD)
 
             # 防止0BB或过小的bet（除非是all-in）
             if bet_amount < 0.5 and not is_allin:
@@ -469,7 +474,7 @@ def run_betting_round(
 
             # 如果筹码不足以call，转为all-in call或fold
             if current_stack < call_amt:
-                if current_stack > 0.01:
+                if current_stack > ALLIN_THRESHOLD:
                     # 筹码不足以完成call，但可以all-in call
                     if verbose:
                         print(f"  [Insufficient chips for raise, all-in calling instead]")
@@ -519,7 +524,8 @@ def run_betting_round(
 
             # 计算raise的增量（限制在剩余stack范围内）
             raise_amt = min(amount, current_stack - call_amt)
-            is_allin = (call_amt + raise_amt >= current_stack - 0.01)
+            # All-in判断：raise后剩余筹码<=1BB
+            is_allin = (current_stack - call_amt - raise_amt <= ALLIN_THRESHOLD)
 
             # 如果raise_amt过小（除非是all-in），转为call
             if raise_amt < 0.5 and not is_allin:

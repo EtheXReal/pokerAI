@@ -1,0 +1,695 @@
+================================================================================
+advisor_v2 vs Random 详细测试结果
+================================================================================
+
+测试时间: 2025-11-12 09:59:41
+总用时: 0.0 秒
+平均速度: 2785.87 手/秒
+架构: advisor_v2 (RangeEngine → EquityEngine → BoardAnalyzer → GTOStrategy)
+
+================================================================================
+📊 测试结果汇总
+================================================================================
+
+总手数: 32
+AI总盈亏: +24.80 BB
+AI BB/100: +77.48 BB/100手
+
+BTN位置 (16手):
+  盈亏: +5.75 BB
+  BB/100: +35.94
+
+BB位置 (16手):
+  盈亏: +19.05 BB
+  BB/100: +119.03
+
+================================================================================
+📋 每手详细记录
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #1 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4cJd
+  Random Hand: 6h9h
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> fold                      | Pot: 4.8BB
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #2 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     6h8s
+  Random Hand: 2dQs
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  7c 6d 7d
+  Turn:  3c
+  River: Kd
+
+最终牌力:
+  AI:     TWO_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #3 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     AcAd
+  Random Hand: 3hKc
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  2d Th Td
+  Turn:  8h
+  River: Jh
+
+最终牌力:
+  AI:     TWO_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #4 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     AcAd
+  Random Hand: 5cKh
+
+行动序列:
+  Random   -> raise to 3.4BB            | Pot: 4.4BB
+  AI       -> 3-bet to 8.6BB            | Pot: 12.0BB | fallback:score=28
+  Random   -> fold to 3-bet             | Pot: 12.0BB
+
+结果:
+  Winner: AI
+  AI Profit: +3.42 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #5 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     6c7d
+  Random Hand: 8hQs
+
+行动序列:
+  AI       -> call                      | Pot: 1.5BB | range_pct=0.00
+
+公共牌:
+  Flop:  Jh 3c 4d
+  Turn:  9s
+  River: Kh
+
+最终牌力:
+  AI:     HIGH_CARD
+  Random: HIGH_CARD
+
+结果:
+  Winner: Random
+  AI Profit: -1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #6 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4cAc
+  Random Hand: 8dKs
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  5h 4s Qc
+  Turn:  Jc
+  River: 3h
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: HIGH_CARD
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #7 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     Jc4s
+  Random Hand: 8c5c
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  2c 3s 3c
+  Turn:  3h
+  River: Kc
+
+最终牌力:
+  AI:     THREE_OF_A_KIND
+  Random: FLUSH
+
+结果:
+  Winner: Random
+  AI Profit: -3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #8 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     Kd9s
+  Random Hand: Qs7h
+
+行动序列:
+  Random   -> raise to 3.8BB            | Pot: 4.8BB
+  AI       -> 3-bet to 9.4BB            | Pot: 13.2BB | fallback:score=22
+  Random   -> fold to 3-bet             | Pot: 13.2BB
+
+结果:
+  Winner: AI
+  AI Profit: +3.76 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #9 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     7d5c
+  Random Hand: 3sQs
+
+行动序列:
+  AI       -> call                      | Pot: 1.5BB | range_pct=0.00
+
+公共牌:
+  Flop:  Js Jc 7h
+  Turn:  4s
+  River: 6c
+
+最终牌力:
+  AI:     TWO_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #10 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     5c7h
+  Random Hand: 3s6h
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #11 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4cJd
+  Random Hand: 2c5d
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> 3-bet to 9.4BB            | Pot: 13.1BB
+  AI       -> fold to 3-bet             | Pot: 13.1BB | non_premium
+
+结果:
+  Winner: Random
+  AI Profit: -3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #12 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     5sQc
+  Random Hand: 4s9s
+
+行动序列:
+  Random   -> raise to 2.9BB            | Pot: 3.9BB
+  AI       -> call 1.9BB                | Pot: 5.9BB | fallback:score=17
+
+公共牌:
+  Flop:  8d Jc 2h
+  Turn:  7h
+  River: Qs
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: HIGH_CARD
+
+结果:
+  Winner: AI
+  AI Profit: +2.93 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #13 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     KcAh
+  Random Hand: Ts2d
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  5s 2c 5c
+  Turn:  Jd
+  River: Jh
+
+最终牌力:
+  AI:     TWO_PAIR
+  Random: TWO_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #14 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     Jd8c
+  Random Hand: Kh3h
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  Jh 5d Ad
+  Turn:  Ts
+  River: 6d
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: HIGH_CARD
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #15 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     As3s
+  Random Hand: 8s6d
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  3h Tc Qs
+  Turn:  Kc
+  River: 9c
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: HIGH_CARD
+
+结果:
+  Winner: AI
+  AI Profit: +3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #16 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     8dJd
+  Random Hand: As6c
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  Qd 2c Td
+  Turn:  2h
+  River: 6s
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: TWO_PAIR
+
+结果:
+  Winner: Random
+  AI Profit: -1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #17 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     ThQc
+  Random Hand: 4s8c
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> fold                      | Pot: 4.8BB
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #18 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     5d7s
+  Random Hand: Td4s
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  8c 8h 3h
+  Turn:  2h
+  River: 9h
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: Random
+  AI Profit: -1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #19 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     6dKs
+  Random Hand: QsAd
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> fold                      | Pot: 4.8BB
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #20 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     9dTd
+  Random Hand: 6d9c
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #21 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4h3s
+  Random Hand: KsKd
+
+行动序列:
+  AI       -> fold                      | Pot: 1.5BB | range_pct=0.00
+
+结果:
+  Winner: Random
+  AI Profit: -0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #22 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     QhAc
+  Random Hand: 9h9s
+
+行动序列:
+  Random   -> call 0.5BB                | Pot: 2.0BB
+  AI       -> check                     | Pot: 2.0BB
+
+公共牌:
+  Flop:  2h Js 6h
+  Turn:  Ah
+  River: 7c
+
+最终牌力:
+  AI:     ONE_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #23 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     5h8s
+  Random Hand: QsJd
+
+行动序列:
+  AI       -> call                      | Pot: 1.5BB | range_pct=0.00
+
+公共牌:
+  Flop:  7d 5d Ts
+  Turn:  5s
+  River: Qh
+
+最终牌力:
+  AI:     THREE_OF_A_KIND
+  Random: TWO_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #24 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     8cKd
+  Random Hand: 7c2s
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #25 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4sJc
+  Random Hand: 2d2c
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  Td Js Jh
+  Turn:  3d
+  River: 2h
+
+最终牌力:
+  AI:     THREE_OF_A_KIND
+  Random: FULL_HOUSE
+
+结果:
+  Winner: Random
+  AI Profit: -3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #26 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     Ad9d
+  Random Hand: JcTh
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #27 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     4d5d
+  Random Hand: KsKc
+
+行动序列:
+  AI       -> raise to 3.8BB            | Pot: 4.8BB | range_pct=0.00
+  Random   -> call 2.8BB                | Pot: 7.5BB
+
+公共牌:
+  Flop:  2d 3c Qh
+  Turn:  3d
+  River: Ad
+
+最终牌力:
+  AI:     STRAIGHT_FLUSH
+  Random: TWO_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +3.75 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #28 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     JcTc
+  Random Hand: Kh4h
+
+行动序列:
+  Random   -> raise to 3.9BB            | Pot: 4.9BB
+  AI       -> 3-bet to 9.8BB            | Pot: 13.8BB | fallback:score=23
+  Random   -> fold to 3-bet             | Pot: 13.8BB
+
+结果:
+  Winner: AI
+  AI Profit: +3.93 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #29 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     8s7d
+  Random Hand: Ks8c
+
+行动序列:
+  AI       -> call                      | Pot: 1.5BB | range_pct=0.00
+
+公共牌:
+  Flop:  9c 3d 7c
+  Turn:  6h
+  River: 3s
+
+最终牌力:
+  AI:     TWO_PAIR
+  Random: ONE_PAIR
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #30 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     9h7s
+  Random Hand: 9d4d
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #31 - AI Position: BTN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     9h4c
+  Random Hand: Th5d
+
+行动序列:
+  AI       -> call                      | Pot: 1.5BB | range_pct=0.00
+
+公共牌:
+  Flop:  Jc 2d Kd
+  Turn:  7d
+  River: 5c
+
+最终牌力:
+  AI:     HIGH_CARD
+  Random: ONE_PAIR
+
+结果:
+  Winner: Random
+  AI Profit: -1.00 BB
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hand #32 - AI Position: BB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+起手牌:
+  AI Hand:     9dTc
+  Random Hand: 9sQs
+
+行动序列:
+  Random   -> fold                      | Pot: 1.5BB
+
+结果:
+  Winner: AI
+  AI Profit: +0.50 BB
+

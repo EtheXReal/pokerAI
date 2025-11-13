@@ -16,6 +16,7 @@ import time
 from typing import Tuple
 
 from poker_env import PokerGame, GameConfig, Player, PlayerAction, GameState
+from poker_env.utils import round_amount
 from advisor.range_engine import Hand, Board
 from advisor.strategy_engine import GameState as AdvisorGameState
 from advisor.opponent_modeling import PlayerType
@@ -81,11 +82,29 @@ class AdvisorV2Player(Player):
             # 转换amount
             if action_type in ['bet', 'raise']:
                 if amount > 0:
-                    actual_amount = game_state.pot * amount
+                    actual_amount = round_amount(game_state.pot * amount)
                 else:
-                    actual_amount = game_state.pot * 0.66
+                    actual_amount = round_amount(game_state.pot * 0.66)
 
-                actual_amount = max(0.5, min(actual_amount, game_state.hero_stack))
+                # 限制在合法范围
+                if action_type == 'raise':
+                    # raise是增量，需要扣除to_call
+                    max_raise = game_state.hero_stack - game_state.to_call
+                    actual_amount = max(0.5, min(actual_amount, max_raise))
+
+                    # 如果接近all-in（剩余筹码 < 1BB），直接all-in
+                    if max_raise - actual_amount < 1.0:
+                        actual_amount = max_raise
+                else:
+                    # bet是总金额
+                    actual_amount = max(0.5, min(actual_amount, game_state.hero_stack))
+
+                    # 如果接近all-in（剩余筹码 < 1BB），直接all-in
+                    if game_state.hero_stack - actual_amount < 1.0:
+                        actual_amount = game_state.hero_stack
+
+                actual_amount = round_amount(actual_amount)
+
                 return PlayerAction(action_type, actual_amount)
             else:
                 return PlayerAction(action_type, 0.0)

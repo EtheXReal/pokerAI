@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional
 from advisor.range_engine import Hand, Board
+from .utils import ALLIN_THRESHOLD, round_amount
 
 
 @dataclass
@@ -65,25 +66,27 @@ class Player(ABC):
 
     def invest(self, amount: float):
         """投入筹码"""
-        amount = min(amount, self.stack)
-        self.stack -= amount
-        self.invested += amount
-        self.street_invested += amount
+        amount = round_amount(min(amount, self.stack))
+        self.stack = round_amount(self.stack - amount)
+        self.invested = round_amount(self.invested + amount)
+        self.street_invested = round_amount(self.street_invested + amount)
 
-        # 检查是否all-in
-        if self.stack <= 1.0:  # All-in阈值
+        # 检查是否all-in（使用统一的ALLIN_THRESHOLD）
+        if self.stack <= ALLIN_THRESHOLD:
             self.is_allin = True
+            self.stack = 0.0  # 精确归零
 
         return amount
 
     def return_chips(self, amount: float):
         """退回筹码（uncalled bet）"""
-        self.stack += amount
-        self.invested -= amount
-        self.street_invested -= amount
+        amount = round_amount(amount)
+        self.stack = round_amount(self.stack + amount)
+        self.invested = round_amount(self.invested - amount)
+        self.street_invested = round_amount(self.street_invested - amount)
 
     def __str__(self):
-        return f"{self.name}(seat={self.seat}, stack={self.stack:.1f}BB)"
+        return f"{self.name}(seat={self.seat}, stack={self.stack:.2f}BB)"
 
 
 @dataclass

@@ -5,6 +5,44 @@ from enum import Enum
 from typing import List
 
 
+# ============================================================================
+# 精度控制常量
+# ============================================================================
+# 德州扑克标准精度：0.01BB（小数点后2位）
+# 这与线上扑克的筹码最小单位一致
+PRECISION = 2  # 小数点位数
+EPSILON = 0.01  # 最小单位（0.01BB）
+ALLIN_THRESHOLD = 0.01  # All-in阈值
+
+
+def round_amount(amount: float) -> float:
+    """
+    统一的金额精度控制
+
+    Args:
+        amount: 原始金额
+
+    Returns:
+        四舍五入到0.01BB精度的金额
+    """
+    return round(amount, PRECISION)
+
+
+def is_close(a: float, b: float, epsilon: float = EPSILON) -> bool:
+    """
+    浮点数比较（考虑精度误差）
+
+    Args:
+        a: 第一个数
+        b: 第二个数
+        epsilon: 误差阈值
+
+    Returns:
+        是否在误差范围内相等
+    """
+    return abs(a - b) < epsilon
+
+
 class Street(Enum):
     """街道枚举"""
     PREFLOP = "preflop"
@@ -177,6 +215,6 @@ def format_action(player_name: str, action: str, amount: float = 0,
         格式化的字符串
     """
     if amount > 0:
-        return f"{player_name}: {action} {amount:.1f}BB (pot={pot_after:.1f}BB)"
+        return f"{player_name}: {action} {amount:.2f}BB (pot={pot_after:.2f}BB)"
     else:
-        return f"{player_name}: {action} (pot={pot_after:.1f}BB)"
+        return f"{player_name}: {action} (pot={pot_after:.2f}BB)"

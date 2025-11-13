@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 from .player import Player, PlayerAction, GameState
-from .utils import Street, get_action_order, get_position_name
+from .utils import Street, get_action_order, get_position_name, round_amount, ALLIN_THRESHOLD, EPSILON
 from advisor.range_engine import Board
 
 
@@ -32,7 +32,6 @@ class BettingRound:
     def __init__(self, verbose: bool = False, debug: bool = False):
         self.verbose = verbose
         self.debug = debug
-        self.ALLIN_THRESHOLD = 1.0
 
     def run(
         self,
@@ -72,11 +71,11 @@ class BettingRound:
 
         if self.debug:
             print(f"\n  [DEBUG] === Starting {street.value} betting round ===")
-            print(f"  [DEBUG] Pot: {pot:.1f}BB")
+            print(f"  [DEBUG] Pot: {pot:.2f}BB")
             for p in players:
                 if p.is_active:
-                    print(f"  [DEBUG] {p.name} (seat {p.seat}): stack={p.stack:.1f}BB, "
-                          f"street_invested={p.street_invested:.1f}BB, allin={p.is_allin}")
+                    print(f"  [DEBUG] {p.name} (seat {p.seat}): stack={p.stack:.2f}BB, "
+                          f"street_invested={p.street_invested:.2f}BB, allin={p.is_allin}")
 
         # 行动循环变量
         last_raise_increment = 1.0  # 初始最小加注增量为1BB
@@ -120,7 +119,7 @@ class BettingRound:
 
             # 检查是否可以结束betting round
             # 条件：所有active玩家的街道投入相等，且至少有一个玩家行动过
-            if num_actions > 1 and to_call <= 0.01:
+            if num_actions > 1 and to_call <= EPSILON:
                 # 检查是否所有active玩家投入相等
                 active_invested = [p.street_invested for p in players if p.is_active]
                 if len(set(active_invested)) == 1:
@@ -151,8 +150,8 @@ class BettingRound:
 
             if self.debug:
                 print(f"\n  [DEBUG] Action #{num_actions}, {current_player.name} to act")
-                print(f"  [DEBUG] Facing bet: {facing_bet:.1f}BB, to_call: {to_call:.1f}BB")
-                print(f"  [DEBUG] Stack: {current_player.stack:.1f}BB")
+                print(f"  [DEBUG] Facing bet: {facing_bet:.2f}BB, to_call: {to_call:.2f}BB")
+                print(f"  [DEBUG] Stack: {current_player.stack:.2f}BB")
 
             # 获取玩家决策
             try:
@@ -161,7 +160,7 @@ class BettingRound:
                 if self.verbose:
                     print(f"  [Error in {current_player.name} decision: {e}]")
                 # 出错时默认fold或check
-                if to_call > 0.01:
+                if to_call > EPSILON:
                     player_action = PlayerAction('fold', 0.0)
                 else:
                     player_action = PlayerAction('check', 0.0)
@@ -170,15 +169,15 @@ class BettingRound:
             amount = player_action.amount
 
             if self.debug:
-                print(f"  [DEBUG] Decision: {action_type}, amount: {amount:.1f}BB")
+                print(f"  [DEBUG] Decision: {action_type}, amount: {amount:.2f}BB")
 
             # Action规范化
-            if to_call > 0.01 and action_type == 'bet':
+            if to_call > EPSILON and action_type == 'bet':
                 action_type = 'raise'
                 if self.verbose:
                     print(f"  [Normalized: bet -> raise]")
 
-            if to_call <= 0.01 and action_type == 'raise':
+            if to_call <= EPSILON and action_type == 'raise':
                 action_type = 'bet'
                 if self.verbose:
                     print(f"  [Normalized: raise -> bet]")
@@ -199,10 +198,10 @@ class BettingRound:
 
             elif action_type == 'check':
                 # 验证：facing bet时不能check
-                if to_call > 0.01:
+                if to_call > EPSILON:
                     # 非法check，强制fold
                     if self.verbose:
-                        print(f"  [Invalid check facing bet {to_call:.1f}BB, folding instead]")
+                        print(f"  [Invalid check facing bet {to_call:.2f}BB, folding instead]")
                     current_player.is_active = False
                     actions.append(ActionRecord(
                         street.value, current_player.name, current_seat, 'fold', 0, pot
@@ -228,10 +227,10 @@ class BettingRound:
                 pot += actual_invested
 
                 # 如果是all-in call且未完全call对手的bet
-                if current_player.is_allin and call_amount < to_call - 0.01:
+                if current_player.is_allin and call_amount < to_call - EPSILON:
                     uncalled_bet = to_call - call_amount
                     if self.verbose:
-                        print(f"  [All-in call: returning {uncalled_bet:.1f}BB uncalled bet]")
+                        print(f"  [All-in call: returning {uncalled_bet:.2f}BB uncalled bet]")
 
                     # 找到投入最多的玩家，退回uncalled bet
                     for p in players:
@@ -240,17 +239,17 @@ class BettingRound:
                             pot -= uncalled_bet
                             break
 
-                action_str = f'call {actual_invested:.1f}BB' + (' (all-in)' if current_player.is_allin else '')
+                action_str = f'call {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                 actions.append(ActionRecord(
                     street.value, current_player.name, current_seat, action_str, actual_invested, pot
                 ))
                 if self.verbose:
-                    print(f"  {current_player.name} calls {actual_invested:.1f}BB" +
+                    print(f"  {current_player.name} calls {actual_invested:.2f}BB" +
                           (' (all-in)' if current_player.is_allin else '') +
-                          f", pot={pot:.1f}BB")
+                          f", pot={pot:.2f}BB")
 
                 if self.debug:
-                    print(f"  [DEBUG] After call: pot={pot:.1f}BB, {current_player.name} stack={current_player.stack:.1f}BB")
+                    print(f"  [DEBUG] After call: pot={pot:.2f}BB, {current_player.name} stack={current_player.stack:.2f}BB")
 
                 # Call结束当前玩家的行动
                 # 但需要继续检查其他玩家
@@ -271,30 +270,30 @@ class BettingRound:
                     pot += actual_invested
                     last_raise_increment = actual_invested
 
-                    action_str = f'bet {actual_invested:.1f}BB' + (' (all-in)' if current_player.is_allin else '')
+                    action_str = f'bet {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                     actions.append(ActionRecord(
                         street.value, current_player.name, current_seat, action_str, actual_invested, pot
                     ))
                     if self.verbose:
-                        print(f"  {current_player.name} bets {actual_invested:.1f}BB" +
+                        print(f"  {current_player.name} bets {actual_invested:.2f}BB" +
                               (' (all-in)' if current_player.is_allin else '') +
-                              f", pot={pot:.1f}BB")
+                              f", pot={pot:.2f}BB")
 
                     if self.debug:
-                        print(f"  [DEBUG] After bet: pot={pot:.1f}BB")
+                        print(f"  [DEBUG] After bet: pot={pot:.2f}BB")
 
             elif action_type == 'raise':
                 # 计算raise金额
                 call_amt = to_call
                 if current_player.stack < call_amt:
                     # 筹码不足以call，只能all-in call或fold
-                    if current_player.stack > self.ALLIN_THRESHOLD:
+                    if current_player.stack > ALLIN_THRESHOLD:
                         actual_invested = current_player.invest(current_player.stack)
                         pot += actual_invested
 
                         # 退回uncalled bet
                         uncalled_bet = call_amt - actual_invested
-                        if uncalled_bet > 0.01:
+                        if uncalled_bet > EPSILON:
                             for p in players:
                                 if p.is_active and p.street_invested == facing_bet:
                                     p.return_chips(uncalled_bet)
@@ -303,10 +302,10 @@ class BettingRound:
 
                         actions.append(ActionRecord(
                             street.value, current_player.name, current_seat,
-                            f'call {actual_invested:.1f}BB (all-in)', actual_invested, pot
+                            f'call {actual_invested:.2f}BB (all-in)', actual_invested, pot
                         ))
                         if self.verbose:
-                            print(f"  {current_player.name} calls {actual_invested:.1f}BB (all-in), pot={pot:.1f}BB")
+                            print(f"  {current_player.name} calls {actual_invested:.2f}BB (all-in), pot={pot:.2f}BB")
                     else:
                         # Fold
                         current_player.is_active = False
@@ -322,12 +321,12 @@ class BettingRound:
                     total_invest = call_amt + raise_amt
 
                     # 检查最小加注
-                    if raise_to < min_raise_to - 0.01:
+                    if raise_to < min_raise_to - EPSILON:
                         # 不满足最小加注
-                        if current_player.stack - total_invest <= self.ALLIN_THRESHOLD:
+                        if current_player.stack - total_invest <= ALLIN_THRESHOLD:
                             # All-in但不足最小加注，允许（德州扑克规则）
                             if self.verbose:
-                                print(f"  [All-in below min raise: {raise_to:.1f}BB < {min_raise_to:.1f}BB, allowing]")
+                                print(f"  [All-in below min raise: {raise_to:.2f}BB < {min_raise_to:.2f}BB, allowing]")
 
                             actual_invested = current_player.invest(total_invest)
                             pot += actual_invested
@@ -335,10 +334,10 @@ class BettingRound:
 
                             actions.append(ActionRecord(
                                 street.value, current_player.name, current_seat,
-                                f'raise to {raise_to:.1f}BB (all-in)', actual_invested, pot
+                                f'raise to {raise_to:.2f}BB (all-in)', actual_invested, pot
                             ))
                             if self.verbose:
-                                print(f"  {current_player.name} raises to {raise_to:.1f}BB (all-in), pot={pot:.1f}BB")
+                                print(f"  {current_player.name} raises to {raise_to:.2f}BB (all-in), pot={pot:.2f}BB")
                         else:
                             # 不是all-in且不满足最小加注，改为call
                             if self.verbose:
@@ -348,27 +347,27 @@ class BettingRound:
 
                             actions.append(ActionRecord(
                                 street.value, current_player.name, current_seat,
-                                f'call {actual_invested:.1f}BB', actual_invested, pot
+                                f'call {actual_invested:.2f}BB', actual_invested, pot
                             ))
                             if self.verbose:
-                                print(f"  {current_player.name} calls {actual_invested:.1f}BB, pot={pot:.1f}BB")
+                                print(f"  {current_player.name} calls {actual_invested:.2f}BB, pot={pot:.2f}BB")
                     else:
                         # 满足最小加注，正常raise
                         actual_invested = current_player.invest(total_invest)
                         pot += actual_invested
                         last_raise_increment = raise_amt
 
-                        action_str = f'raise to {raise_to:.1f}BB' + (' (all-in)' if current_player.is_allin else '')
+                        action_str = f'raise to {raise_to:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                         actions.append(ActionRecord(
                             street.value, current_player.name, current_seat, action_str, actual_invested, pot
                         ))
                         if self.verbose:
-                            print(f"  {current_player.name} raises to {raise_to:.1f}BB" +
+                            print(f"  {current_player.name} raises to {raise_to:.2f}BB" +
                                   (' (all-in)' if current_player.is_allin else '') +
-                                  f", pot={pot:.1f}BB")
+                                  f", pot={pot:.2f}BB")
 
                         if self.debug:
-                            print(f"  [DEBUG] After raise: pot={pot:.1f}BB")
+                            print(f"  [DEBUG] After raise: pot={pot:.2f}BB")
 
             # 移到下一个玩家
             current_player_idx = (current_player_idx + 1) % len(action_order)

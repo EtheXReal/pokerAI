@@ -104,26 +104,61 @@ class GTOBaseline:
         if action_history[-1] == '4bet':
             return self._preflop_vs_4bet(hand_strength, effective_stack)
 
+        # 面对limp (call)
+        if action_history[-1] == 'call':
+            return self._preflop_vs_limp(position, hand_strength, effective_stack)
+
         # 默认：保守策略
         return {'fold': 0.8, 'call': 0.2}
 
     def _preflop_open_strategy(self, position: Position, strength: float) -> Dict[str, float]:
-        """开池策略"""
-        # 位置越好，开池范围越宽
-        position_thresholds = {
+        """
+        开池策略（包含limp逻辑）
+
+        根据hand strength和位置决定：
+        1. Raise (open) - 强牌
+        2. Call (limp) - 中等牌，基于pot odds合理
+        3. Fold - 弱牌
+        """
+        # Raise阈值 - 位置越好，开池范围越宽
+        # Phase 1 Fix: 扩大BTN/CO开池范围，符合GTO标准
+        raise_thresholds = {
             Position.UTG: 0.75,  # 只开最好的25%
-            Position.MP: 0.70,
-            Position.CO: 0.65,
-            Position.BTN: 0.50,  # BTN可以开50%
-            Position.SB: 0.60,
-            Position.BB: 1.0,  # BB已经投入，不用开池
+            Position.MP: 0.70,   # 开30%
+            Position.CO: 0.40,   # 开60% (修复：0.65→0.40)
+            Position.BTN: 0.25,  # 开75% (修复：0.50→0.25) - GTO标准
+            Position.SB: 0.50,   # 开50%
+            Position.BB: 1.0,    # BB已经投入，不用开池
         }
 
-        threshold = position_thresholds.get(position, 0.70)
+        # Limp阈值 - 修复Bug #2: BTN/CO/UTG/MP取消limp，SB收紧
+        # 现代GTO：BTN/CO要么raise要么fold，不limp
+        # 设置limp_threshold = raise_threshold即可取消limp
+        limp_thresholds = {
+            Position.UTG: 0.75,  # = raise threshold，取消limp
+            Position.MP: 0.70,   # = raise threshold，取消limp
+            Position.CO: 0.40,   # = raise threshold，取消limp (修复：0.65→0.40)
+            Position.BTN: 0.25,  # = raise threshold，取消limp (修复：0.50→0.25)
+            Position.SB: 0.50,   # 收紧limp范围（修复：0.40→0.50）
+            Position.BB: 0.30,   # BB保留（免费看flop）
+        }
 
-        if strength >= threshold:
-            return {'fold': 0.0, 'raise': 1.0}
+        raise_threshold = raise_thresholds.get(position, 0.70)
+        limp_threshold = limp_thresholds.get(position, 0.50)
+
+        if strength >= raise_threshold:
+            # 强牌：raise (open)
+            return {'fold': 0.0, 'call': 0.0, 'raise': 1.0}
+        elif strength >= limp_threshold:
+            # 中等牌：主要limp，少量raise作为bluff/balance
+            # BTN和SB位置可以更多limp（因为有位置或pot odds优势）
+            if position in [Position.BTN, Position.SB]:
+                return {'fold': 0.0, 'call': 0.85, 'raise': 0.15}
+            else:
+                # EP/MP位置limp风险较高（容易被squeeze），所以部分fold
+                return {'fold': 0.2, 'call': 0.70, 'raise': 0.10}
         else:
+            # 弱牌：fold
             return {'fold': 1.0}
 
     def _preflop_vs_open(self, position: Position, strength: float, stack: float) -> Dict[str, float]:
@@ -214,6 +249,49 @@ class GTOBaseline:
             # 其他：弃牌
             return {'fold': 1.0}
 
+    def _preflop_vs_limp(self, position: Position, strength: float, stack: float) -> Dict[str, float]:
+        """
+        面对limp (call)的策略
+
+        特别重要：BB位置面对limp时，强牌应该raise进行isolation
+
+        GTO原则：
+        1. 强牌(88+, ATs+, AQo+): 100% raise for value + isolation
+        2. 中等牌: Check back (免费看flop)
+        3. 弱牌: Check back (已投入1BB，pot odds好)
+        """
+        # BB位置特殊处理
+        if position == Position.BB:
+            # BB vs limp的raise阈值
+            # 88+ = 0.78+, ATs = 0.73, AQo = 0.72
+            if strength >= 0.72:
+                # 强牌：100% raise进行isolation
+                # TT (0.78), KK (0.88), AA (0.95), AK (0.85+), AQ (0.72+)
+                return {'fold': 0.0, 'call': 0.0, 'raise': 1.0}
+            else:
+                # 中等牌/弱牌：check (已投入1BB，pot odds优秀)
+                # BB只投入1BB，看flop只需再投0BB（免费）
+                # 所以几乎任何牌都应该check
+                return {'fold': 0.0, 'call': 1.0, 'raise': 0.0}
+
+        # SB位置面对limp
+        elif position == Position.SB:
+            # SB需要投0.5BB (pot=2.0BB)，pot odds = 25%
+            if strength >= 0.80:
+                # 强牌：raise进行isolation
+                return {'fold': 0.0, 'call': 0.2, 'raise': 0.8}
+            elif strength >= 0.35:
+                # 中等牌：主要limp，少量raise
+                return {'fold': 0.0, 'call': 0.85, 'raise': 0.15}
+            else:
+                # 弱牌：部分fold（虽然pot odds好，但位置差）
+                return {'fold': 0.6, 'call': 0.4}
+
+        # 其他位置（理论上不会有，因为只有BB/SB在limp后面行动）
+        else:
+            # 保守策略
+            return {'fold': 0.5, 'call': 0.5}
+
     # ===== 翻后GTO公式 =====
 
     def postflop_strategy(self, ctx: GTOContext) -> Dict[str, float]:
@@ -283,6 +361,10 @@ class GTOBaseline:
         主动策略（未面对下注）
 
         基于Equity、Range优势、位置
+
+        Phase 1 Fix:
+        1. 降低value_threshold: 0.65→0.50 (OOP), 0.55→0.45 (IP)
+        2. 移除中等牌硬编码，改用bet_frequency计算
         """
         # 计算下注频率
         bet_frequency = self._calculate_bet_frequency(ctx)
@@ -293,18 +375,21 @@ class GTOBaseline:
         else:
             bluff_freq = 0.0
 
-        # Equity门槛
-        value_threshold = 0.65 - (0.1 if ctx.is_in_position else 0.0)
+        # Equity门槛 - Phase 1 Fix: 降低threshold扩大value betting range
+        value_threshold = 0.50 - (0.05 if ctx.is_in_position else 0.0)
+        # OOP: 0.50 (修复：0.65→0.50), IP: 0.45 (修复：0.55→0.45)
 
         if ctx.equity >= value_threshold:
-            # 强牌：价值下注
+            # 强牌：价值下注（增强频率）
             check_freq = 1.0 - bet_frequency
             bet_freq = bet_frequency
 
         elif ctx.equity >= 0.35:
-            # 中等牌：主要过牌
-            check_freq = 0.8
-            bet_freq = 0.2  # 少量半bluff
+            # 中等牌：Phase 1 Fix - 移除硬编码，改用动态计算
+            # 使用bet_frequency但降低系数（中等牌不如强牌aggressive）
+            adjusted_bet_freq = bet_frequency * 0.6
+            check_freq = 1.0 - adjusted_bet_freq
+            bet_freq = adjusted_bet_freq
 
         else:
             # 弱牌：主要过牌，少量pure bluff

@@ -1,0 +1,569 @@
+================================================================================
+advisor_v2 vs Random 实战验证结果
+================================================================================
+
+测试时间: 2025-11-12 09:51:58
+总用时: 8.4 秒
+平均速度: 59.5 手/秒
+平均决策时间: 0.05 ms/手
+
+================================================================================
+📊 测试结果
+================================================================================
+
+总手数: 500
+AI总盈亏: +113.10 BB
+AI BB/100: +22.62 BB/100手
+
+BTN位置 (250手):
+  盈亏: +22.12 BB
+  BB/100: +8.85
+
+BB位置 (250手):
+  盈亏: +90.98 BB
+  BB/100: +36.39
+
+================================================================================
+📈 与advisor baseline对比
+================================================================================
+
+advisor (baseline):
+  整体 BB/100: +408.00
+  BTN BB/100:  -320.00  ⚠️  (亏损)
+
+advisor_v2 (range-based):
+  整体 BB/100: +22.62
+  BTN BB/100:  +8.85
+
+改进:
+  整体差异: -385.38 BB/100
+  BTN差异:  +328.85 BB/100
+
+================================================================================
+🎯 目标达成情况
+================================================================================
+
+目标1: 整体 BB/100 > +420
+  ⚠️  未达成。实际 +22.62，差距 -397.38
+
+目标2: BTN BB/100 > 0 (不亏损)
+  ✅ 达成！实际 +8.85
+
+================================================================================
+💡 分析
+================================================================================
+
+样本量: 500 手 (小样本，需更多手数验证)
+标准差估计: ±4.5 BB/100
+
+架构优势:
+  ✅ Range-based决策（vs hand-strength）
+  ✅ 所有模块被使用（无架空）
+  ✅ GTO strategy with action distribution
+  ✅ Dynamic bet sizing based on context
+
+================================================================================
+详细数据
+================================================================================
+Hand  Position  Profit    Time(ms)  AI_Hand    Random_Hand  Actions
+--------------------------------------------------------------------------------
+   0  BTN       -3.75     0.45  Kh9d      8cQc      AI:raise,Rand:call,showdown
+   1  BB        +0.50     0.00  Kh6d      3d2s      Rand:fold
+   2  BTN       +1.00     0.15  9sJd      Kd5c      AI:raise,Rand:fold
+   3  BB        +0.50     0.00  8hKc      2s5s      Rand:fold
+   4  BTN       +1.00     0.09  Jh7d      Jd6s      AI:raise,Rand:fold
+   5  BB        -1.00     0.00  9h8d      Kh7d      Rand:call,showdown
+   6  BTN       -3.75     0.12  8sKh      9dAh      AI:raise,Rand:call,showdown
+   7  BB        -1.00     0.00  4c6d      8d7c      Rand:raise,AI:fold
+   8  BTN       +1.00     0.14  QsKh      9d2d      AI:raise,Rand:fold
+   9  BB        +1.00     0.00  5dQc      4c4s      Rand:call,showdown
+  10  BTN       -0.50     0.09  2c5h      Qs6h      AI:fold
+  11  BB        +1.00     0.00  7cQh      5d7h      Rand:call,showdown
+  12  BTN       +1.00     0.17  4hTd      Kc2d      AI:call,showdown
+  13  BB        +0.50     0.00  5dKh      Ts6c      Rand:fold
+  14  BTN       -3.75     0.13  KhJc      2cTd      AI:raise,Rand:call,showdown
+  15  BB        +3.57     0.00  6c9d      5c2s      Rand:raise,AI:call,showdown
+  16  BTN       +1.00     0.08  Ks8d      Js6c      AI:raise,Rand:fold
+  17  BB        +1.00     0.00  5c7c      6dAd      Rand:call,showdown
+  18  BTN       +1.00     0.09  9d9s      QsQh      AI:raise,Rand:fold
+  19  BB        -1.00     0.00  Jc9s      6c9h      Rand:call,showdown
+  20  BTN       -9.38     0.09  KcQs      9h5d      AI:raise,Rand:raise,AI:call3bet,showdown
+  21  BB        +0.50     0.00  2dQc      AdJh      Rand:fold
+  22  BTN       -0.50     0.10  3d4h      2d9h      AI:fold
+  23  BB        +3.65     0.00  Jd7d      4sTh      Rand:raise,AI:raise,Rand:foldto3bet
+  24  BTN       +1.00     0.10  5cQs      AhJs      AI:raise,Rand:fold
+  25  BB        +3.86     0.00  5s7s      3dAh      Rand:raise,AI:call,showdown
+  26  BTN       +1.00     0.08  AhJd      7hKs      AI:raise,Rand:fold
+  27  BB        -1.00     0.00  3d4d      6s7c      Rand:call,showdown
+  28  BTN       +3.75     0.12  KsQs      9c4d      AI:raise,Rand:call,showdown
+  29  BB        +0.50     0.00  QsAd      7d3s      Rand:fold
+  30  BTN       +1.00     0.08  5d6s      8h4h      AI:call,showdown
+  31  BB        -1.00     0.00  9cAc      Kc3s      Rand:call,showdown
+  32  BTN       +1.00     0.09  8sTh      9dTd      AI:raise,Rand:fold
+  33  BB        +1.00     0.00  2sQs      4sTh      Rand:call,showdown
+  34  BTN       -0.50     0.10  9h4c      3d4s      AI:fold
+  35  BB        +0.50     0.00  6d6h      9hAc      Rand:fold
+  36  BTN       -3.75     0.13  5cKh      2dAs      AI:raise,Rand:call,showdown
+  37  BB        -1.00     0.00  Qd4d      ThTc      Rand:call,showdown
+  38  BTN       -3.75     0.07  9s2s      KhKs      AI:raise,Rand:call,showdown
+  39  BB        -1.00     0.00  2c9d      Tc3s      Rand:call,showdown
+  40  BTN       +3.75     0.08  Ks6h      Qh5h      AI:raise,Rand:call,showdown
+  41  BB        +0.50     0.00  Kd9h      5cQc      Rand:fold
+  42  BTN       +3.75     0.08  7hTd      QdTs      AI:raise,Rand:call,showdown
+  43  BB        +0.50     0.00  TcAh      2s9d      Rand:fold
+  44  BTN       +1.00     0.11  3cKs      3d6s      AI:raise,Rand:fold
+  45  BB        +0.50     0.00  7h5s      8h7c      Rand:fold
+  46  BTN       +1.00     0.13  8cAc      2h7s      AI:raise,Rand:fold
+  47  BB        -1.00     0.00  4d8d      3hQc      Rand:call,showdown
+  48  BTN       -1.00     0.11  5c8h      6c5s      AI:call,showdown
+  49  BB        +1.00     0.00  8s5d      QdTc      Rand:call,showdown
+  50  BTN       -0.50     0.18  4cTh      8s5s      AI:fold
+  51  BB        +1.00     0.00  6sTc      5s7s      Rand:call,showdown
+  52  BTN       -3.75     0.10  AsJs      5h8s      AI:raise,Rand:call,showdown
+  53  BB        +2.64     0.00  Js3h      5c9h      Rand:raise,AI:call,showdown
+  54  BTN       +1.00     0.08  Kc6h      2c8s      AI:raise,Rand:fold
+  55  BB        +1.00     0.00  3hTd      Ks2s      Rand:call,showdown
+  56  BTN       +3.75     0.08  Qs6c      Tc4s      AI:raise,Rand:call,showdown
+  57  BB        -1.00     0.00  3h5d      9s5h      Rand:call,showdown
+  58  BTN       +1.00     0.09  QdTc      Ah3d      AI:raise,Rand:fold
+  59  BB        +0.50     0.00  5d6d      2d3c      Rand:fold
+  60  BTN       -3.75     0.09  QhJs      KhKs      AI:raise,Rand:raise,AI:foldto3bet
+  61  BB        +0.00     0.00  Jh5h      Ts5c      Rand:raise,AI:call,showdown
+  62  BTN       +3.75     0.15  Ah4c      9d4d      AI:raise,Rand:call,showdown
+  63  BB        +1.00     0.00  7cTd      2d4s      Rand:call,showdown
+  64  BTN       -0.50     0.14  6c7h      8s8h      AI:fold
+  65  BB        +0.50     0.00  4cKc      ThAc      Rand:fold
+  66  BTN       -3.75     0.08  7dKs      5sTd      AI:raise,Rand:call,showdown
+  67  BB        +1.00     0.00  AdTd      Ks3d      Rand:call,showdown
+  68  BTN       +3.75     0.09  5s5d      QhJc      AI:raise,Rand:call,showdown
+  69  BB        +0.50     0.00  2c4h      9h9c      Rand:fold
+  70  BTN       +1.00     0.13  2s2c      5h7h      AI:raise,Rand:fold
+  71  BB        +1.00     0.00  5s4c      8sQc      Rand:call,showdown
+  72  BTN       -1.00     0.08  4d5c      9dTs      AI:call,showdown
+  73  BB        +0.50     0.00  8cQc      Js7d      Rand:fold
+  74  BTN       +3.75     0.09  Th5h      4d3h      AI:raise,Rand:call,showdown
+  75  BB        +1.00     0.00  9dQh      6h7h      Rand:call,showdown
+  76  BTN       -3.75     0.09  5sAc      2cQh      AI:raise,Rand:call,showdown
+  77  BB        +1.00     0.00  8sKc      7cAh      Rand:call,showdown
+  78  BTN       -3.75     0.08  Ac7h      4hQs      AI:raise,Rand:raise,AI:foldto3bet
+  79  BB        -1.00     0.00  9sKh      2h6h      Rand:call,showdown
+  80  BTN       +1.00     0.09  5s9s      9cAs      AI:raise,Rand:fold
+  81  BB        +0.50     0.00  6s4s      Qh8c      Rand:fold
+  82  BTN       +1.00     0.15  5hJs      4dAs      AI:raise,Rand:fold
+  83  BB        -1.00     0.00  9h4s      Ah2h      Rand:raise,AI:fold
+  84  BTN       +3.75     0.07  6s2d      KsTc      AI:raise,Rand:call,showdown
+  85  BB        +0.50     0.00  QcTh      4d5s      Rand:fold
+  86  BTN       +1.00     0.09  KsAs      Tc2s      AI:raise,Rand:fold
+  87  BB        +1.00     0.00  7hKh      QcAc      Rand:call,showdown
+  88  BTN       +1.00     0.08  AdKd      5sJc      AI:raise,Rand:fold
+  89  BB        +0.00     0.00  6hTs      Td9s      Rand:call,showdown
+  90  BTN       +1.00     0.07  Jd5h      4s5c      AI:raise,Rand:fold
+  91  BB        +1.00     0.00  7sTs      6s2d      Rand:call,showdown
+  92  BTN       -0.50     0.07  6h8s      Kd7d      AI:fold
+  93  BB        +1.00     0.00  2h4c      2sQh      Rand:call,showdown
+  94  BTN       +1.00     0.07  3d2d      Ad4s      AI:raise,Rand:fold
+  95  BB        +0.50     0.00  3c8s      9s6d      Rand:fold
+  96  BTN       -3.75     0.08  4h6d      2d6s      AI:raise,Rand:raise,AI:foldto3bet
+  97  BB        +1.00     0.00  4cKh      Td2s      Rand:call,showdown
+  98  BTN       +0.00     0.08  QcAh      AcJd      AI:raise,Rand:call,showdown
+  99  BB        +0.50     0.00  8dKd      Ks3h      Rand:fold
+ 100  BTN       +1.00     0.12  Kh2c      Kc5d      AI:raise,Rand:fold
+ 101  BB        +3.81     0.00  9dAh      7sJs      Rand:raise,AI:raise,Rand:foldto3bet
+ 102  BTN       -3.75     0.09  6dJc      8sKh      AI:raise,Rand:raise,AI:foldto3bet
+ 103  BB        -1.00     0.00  7sKd      6c8d      Rand:call,showdown
+ 104  BTN       +1.00     0.09  6h2s      5cKh      AI:call,showdown
+ 105  BB        +0.50     0.00  2s7d      Th3c      Rand:fold
+ 106  BTN       +1.00     0.10  7hAs      ThQc      AI:raise,Rand:fold
+ 107  BB        -1.00     0.00  3d9s      5cKh      Rand:call,showdown
+ 108  BTN       +3.75     0.08  Qh7s      2dQs      AI:raise,Rand:call,showdown
+ 109  BB        +1.00     0.00  Qs4c      7h3s      Rand:call,showdown
+ 110  BTN       +1.00     0.10  Th5h      2hQd      AI:raise,Rand:fold
+ 111  BB        +1.00     0.00  9c9h      2d6c      Rand:call,showdown
+ 112  BTN       +1.00     0.10  3d4d      2h6s      AI:raise,Rand:fold
+ 113  BB        -1.00     0.00  6c3c      Kh9c      Rand:call,showdown
+ 114  BTN       +1.00     0.12  7c8d      4c6c      AI:call,showdown
+ 115  BB        +0.50     0.00  7d9h      8hKs      Rand:fold
+ 116  BTN       -3.75     0.09  6sTs      5c6c      AI:raise,Rand:raise,AI:foldto3bet
+ 117  BB        +0.50     0.00  AhJs      As7d      Rand:fold
+ 118  BTN       +3.75     0.07  6cKc      2hJc      AI:raise,Rand:call,showdown
+ 119  BB        +0.50     0.00  9sKc      Jh6d      Rand:fold
+ 120  BTN       +0.00     0.07  4h8c      7s8s      AI:call,showdown
+ 121  BB        +0.50     0.00  7h7s      5dQc      Rand:fold
+ 122  BTN       +1.00     0.08  Kc4h      2d6d      AI:raise,Rand:fold
+ 123  BB        -1.00     0.00  Kh4c      QsAh      Rand:call,showdown
+ 124  BTN       -3.75     0.08  5hJs      5d8c      AI:raise,Rand:call,showdown
+ 125  BB        -1.00     0.00  5dKd      3dJc      Rand:call,showdown
+ 126  BTN       +1.00     0.06  8h6s      4sJh      AI:call,showdown
+ 127  BB        -1.00     0.00  4s6h      2d4d      Rand:raise,AI:fold
+ 128  BTN       +1.00     0.10  6c6d      Ks9s      AI:raise,Rand:fold
+ 129  BB        -1.00     0.00  2s9c      5hTc      Rand:raise,AI:fold
+ 130  BTN       -3.75     0.08  QsTd      6cAh      AI:raise,Rand:raise,AI:foldto3bet
+ 131  BB        +1.00     0.00  4cQh      3d7c      Rand:call,showdown
+ 132  BTN       +3.75     0.06  Jc6h      3c4d      AI:raise,Rand:call,showdown
+ 133  BB        +1.00     0.00  5cQs      9sJc      Rand:call,showdown
+ 134  BTN       +1.00     0.08  Kd4d      8h3s      AI:raise,Rand:fold
+ 135  BB        +1.00     0.00  KdTh      Js5h      Rand:call,showdown
+ 136  BTN       +1.00     0.09  KhAc      6cAs      AI:raise,Rand:fold
+ 137  BB        +1.00     0.00  JhJc      TcKd      Rand:call,showdown
+ 138  BTN       +1.00     0.08  4cAh      2h6h      AI:raise,Rand:fold
+ 139  BB        -1.00     0.00  3h2s      5c4s      Rand:call,showdown
+ 140  BTN       -3.75     0.08  7s3s      6s2s      AI:raise,Rand:raise,AI:foldto3bet
+ 141  BB        -1.00     0.00  5c8s      4h2s      Rand:raise,AI:fold
+ 142  BTN       -3.75     0.12  8d9c      Th9s      AI:raise,Rand:call,showdown
+ 143  BB        -1.00     0.00  KcAc      7h8d      Rand:call,showdown
+ 144  BTN       +1.00     0.07  2d8h      7s6h      AI:call,showdown
+ 145  BB        +0.50     0.00  8s4c      QdAh      Rand:fold
+ 146  BTN       -1.00     0.08  Jh3c      QcAh      AI:call,showdown
+ 147  BB        -1.00     0.00  3c8c      3hKd      Rand:call,showdown
+ 148  BTN       +1.00     0.09  JsQc      5c3s      AI:raise,Rand:fold
+ 149  BB        -1.00     0.00  TsAd      2c9s      Rand:call,showdown
+ 150  BTN       +1.00     0.07  2s5d      8s4c      AI:call,showdown
+ 151  BB        -1.00     0.00  8d5h      Td2d      Rand:raise,AI:fold
+ 152  BTN       -1.00     0.07  8s2d      4hKc      AI:call,showdown
+ 153  BB        -1.00     0.00  9s5c      2h5s      Rand:call,showdown
+ 154  BTN       +1.00     0.09  AcQd      5h9c      AI:raise,Rand:fold
+ 155  BB        +1.00     0.00  AdJs      9h5s      Rand:call,showdown
+ 156  BTN       +1.00     0.09  Tc2h      7d4h      AI:call,showdown
+ 157  BB        +1.00     0.00  Js2c      9sTc      Rand:call,showdown
+ 158  BTN       -1.00     0.08  6s8h      2dTc      AI:call,showdown
+ 159  BB        -1.00     0.00  Ad7d      8h4s      Rand:call,showdown
+ 160  BTN       -1.00     0.08  8d4c      Tc3s      AI:call,showdown
+ 161  BB        +0.00     0.00  Js6c      QhTs      Rand:call,showdown
+ 162  BTN       +1.00     0.08  6hTs      AdKs      AI:raise,Rand:fold
+ 163  BB        -1.00     0.00  8s2h      4d5h      Rand:call,showdown
+ 164  BTN       +1.00     0.09  8hQh      Th8c      AI:raise,Rand:fold
+ 165  BB        +1.00     0.00  KdAh      9h6d      Rand:call,showdown
+ 166  BTN       +1.00     0.08  Ks2d      8h3d      AI:raise,Rand:fold
+ 167  BB        +0.50     0.00  3dJd      4h3c      Rand:fold
+ 168  BTN       +3.75     0.08  Kc6s      8d7h      AI:raise,Rand:call,showdown
+ 169  BB        +1.00     0.00  9dKh      Th3d      Rand:call,showdown
+ 170  BTN       -3.75     0.07  3cAd      2d2s      AI:raise,Rand:raise,AI:foldto3bet
+ 171  BB        +0.50     0.00  QsKs      6s9s      Rand:fold
+ 172  BTN       +1.00     0.10  4dQd      3d4c      AI:raise,Rand:fold
+ 173  BB        -1.00     0.00  2c3s      6d8d      Rand:call,showdown
+ 174  BTN       +1.00     0.11  4c8s      JcTh      AI:call,showdown
+ 175  BB        +3.68     0.00  Jh3d      TdAc      Rand:raise,AI:call,showdown
+ 176  BTN       -3.75     0.13  6sTd      Ah9d      AI:raise,Rand:raise,AI:foldto3bet
+ 177  BB        +0.50     0.00  8c9d      TsQd      Rand:fold
+ 178  BTN       +3.75     0.07  Kh4d      Ah3d      AI:raise,Rand:call,showdown
+ 179  BB        +1.00     0.00  6dTd      7h5h      Rand:call,showdown
+ 180  BTN       -3.75     0.08  Td8s      Kh6h      AI:raise,Rand:call,showdown
+ 181  BB        +1.00     0.00  Ah4s      4dJc      Rand:call,showdown
+ 182  BTN       +3.75     0.09  JsKd      9h7h      AI:raise,Rand:call,showdown
+ 183  BB        +0.50     0.00  4s5d      JsJh      Rand:fold
+ 184  BTN       +1.00     0.08  Jc6s      ThKh      AI:raise,Rand:fold
+ 185  BB        -1.00     0.00  3hJc      7dAh      Rand:call,showdown
+ 186  BTN       -1.00     0.08  4c6d      6h2s      AI:call,showdown
+ 187  BB        -1.00     0.00  2s9d      QsQd      Rand:call,showdown
+ 188  BTN       -0.50     0.08  2c3s      4d6h      AI:fold
+ 189  BB        +0.50     0.00  QcTh      5d6s      Rand:fold
+ 190  BTN       -0.50     0.13  3d5s      2c2s      AI:fold
+ 191  BB        +2.98     0.00  6d9d      2h5d      Rand:raise,AI:call,showdown
+ 192  BTN       -1.00     0.10  3c6d      8d9c      AI:call,showdown
+ 193  BB        -1.00     0.00  Tc4s      Ac5d      Rand:call,showdown
+ 194  BTN       -3.75     0.17  QhTs      AcJd      AI:raise,Rand:raise,AI:foldto3bet
+ 195  BB        -1.00     0.00  8hAh      7h6d      Rand:call,showdown
+ 196  BTN       +3.75     0.15  7sTc      7d2d      AI:raise,Rand:call,showdown
+ 197  BB        +0.50     0.00  8hJc      KhJh      Rand:fold
+ 198  BTN       -0.50     0.08  4c2s      9d3c      AI:fold
+ 199  BB        +0.50     0.00  3s9s      4s8d      Rand:fold
+ 200  BTN       +3.75     0.10  4hJs      2hJc      AI:raise,Rand:call,showdown
+ 201  BB        +0.50     0.00  Ah8c      8d8h      Rand:fold
+ 202  BTN       +1.00     0.11  7h9h      Qs7s      AI:raise,Rand:fold
+ 203  BB        +0.50     0.00  9s3c      3dQc      Rand:fold
+ 204  BTN       +3.75     0.08  2sJs      9h7s      AI:raise,Rand:call,showdown
+ 205  BB        +1.00     0.00  KcTc      Qd5s      Rand:call,showdown
+ 206  BTN       -3.75     0.21  Qh6s      Jd3h      AI:raise,Rand:call,showdown
+ 207  BB        -1.00     0.00  AhTh      AdAs      Rand:call,showdown
+ 208  BTN       +1.00     0.10  5d8h      QsJc      AI:call,showdown
+ 209  BB        -1.00     0.00  Qh7h      Kc6d      Rand:call,showdown
+ 210  BTN       +3.75     0.09  2d4d      Kh6s      AI:raise,Rand:call,showdown
+ 211  BB        +0.50     0.00  4s3c      7sAs      Rand:fold
+ 212  BTN       -0.50     0.09  2h4s      JsQc      AI:fold
+ 213  BB        +0.50     0.00  3s4s      4c5h      Rand:fold
+ 214  BTN       -3.75     0.11  5cJc      5hAc      AI:raise,Rand:call,showdown
+ 215  BB        -1.00     0.00  8d4c      5s8s      Rand:raise,AI:fold
+ 216  BTN       -3.75     0.07  Ah4d      Ks6d      AI:raise,Rand:raise,AI:foldto3bet
+ 217  BB        -1.00     0.00  5d4h      8d2c      Rand:call,showdown
+ 218  BTN       +1.00     0.09  Jh5c      Th6c      AI:raise,Rand:fold
+ 219  BB        +1.00     0.00  7cQd      7d8h      Rand:call,showdown
+ 220  BTN       +3.75     0.07  9dKc      Ad4d      AI:raise,Rand:call,showdown
+ 221  BB        +0.50     0.00  6d9d      KcQs      Rand:fold
+ 222  BTN       +3.75     0.09  9h8h      5dQh      AI:raise,Rand:call,showdown
+ 223  BB        +7.29     0.00  KdTs      3c7d      Rand:raise,AI:raise,Rand:call3bet,showdown
+ 224  BTN       -3.75     0.07  8c3c      Kh8s      AI:raise,Rand:call,showdown
+ 225  BB        +3.53     0.00  7d8c      6c5s      Rand:raise,AI:call,showdown
+ 226  BTN       +3.75     0.06  Ah3c      Kh2d      AI:raise,Rand:call,showdown
+ 227  BB        -1.00     0.00  6d3s      Qd8c      Rand:call,showdown
+ 228  BTN       -3.75     0.07  Kc9h      3d4c      AI:raise,Rand:raise,AI:foldto3bet
+ 229  BB        +1.00     0.00  4d8s      6dTh      Rand:call,showdown
+ 230  BTN       +1.00     0.11  2d7d      5hJd      AI:raise,Rand:fold
+ 231  BB        +0.50     0.00  As4d      2s7s      Rand:fold
+ 232  BTN       -3.75     0.09  3hKh      JdKs      AI:raise,Rand:raise,AI:foldto3bet
+ 233  BB        +1.00     0.00  5d7c      5h3s      Rand:call,showdown
+ 234  BTN       -0.50     0.09  5s7d      Tc6d      AI:fold
+ 235  BB        -1.00     0.00  3c9h      Qc3h      Rand:call,showdown
+ 236  BTN       -0.50     0.08  2d4c      7hQc      AI:fold
+ 237  BB        +0.50     0.00  2cKh      9h2s      Rand:fold
+ 238  BTN       +3.75     0.06  9hQs      6hQd      AI:raise,Rand:call,showdown
+ 239  BB        +0.50     0.00  8dQh      7d9h      Rand:fold
+ 240  BTN       +3.75     0.08  TsKd      6s3c      AI:raise,Rand:call,showdown
+ 241  BB        +0.50     0.00  2h3h      4dQc      Rand:fold
+ 242  BTN       +3.75     0.11  Kc6h      3dTc      AI:raise,Rand:call,showdown
+ 243  BB        +0.50     0.00  3hQs      6s5c      Rand:fold
+ 244  BTN       +1.00     0.07  9s3d      Ts2d      AI:call,showdown
+ 245  BB        +0.50     0.00  8d9c      7dTc      Rand:fold
+ 246  BTN       +1.00     0.10  7cAh      2d7d      AI:raise,Rand:fold
+ 247  BB        +0.50     0.00  3d4d      6c5d      Rand:fold
+ 248  BTN       +1.00     0.07  AdAs      5cKc      AI:raise,Rand:fold
+ 249  BB        +0.50     0.00  3c7h      Jc9d      Rand:fold
+ 250  BTN       +3.75     0.08  Kh8c      Qc2s      AI:raise,Rand:call,showdown
+ 251  BB        +0.50     0.00  3c2d      AcTh      Rand:fold
+ 252  BTN       -3.75     0.09  5dTs      Ks5s      AI:raise,Rand:raise,AI:foldto3bet
+ 253  BB        +0.50     0.00  Qs2d      4hJc      Rand:fold
+ 254  BTN       -3.75     0.08  TsAc      2s3c      AI:raise,Rand:call,showdown
+ 255  BB        -1.00     0.00  TcQd      9c8c      Rand:call,showdown
+ 256  BTN       +1.00     0.08  Ah6h      6sJh      AI:raise,Rand:fold
+ 257  BB        +1.00     0.00  Ah8s      8c3h      Rand:call,showdown
+ 258  BTN       -0.50     0.09  2s7c      5d7h      AI:fold
+ 259  BB        +0.50     0.00  Ah2h      JcTs      Rand:fold
+ 260  BTN       -0.50     0.07  3d4h      KsJh      AI:fold
+ 261  BB        +0.50     0.00  4cTh      2s3s      Rand:fold
+ 262  BTN       +1.00     0.13  2c2h      3c8d      AI:raise,Rand:fold
+ 263  BB        +1.00     0.00  3s6h      3h7h      Rand:call,showdown
+ 264  BTN       -1.00     0.07  9s7d      AhKc      AI:call,showdown
+ 265  BB        -1.00     0.00  2cQs      Kd3d      Rand:call,showdown
+ 266  BTN       -1.00     0.07  3dJc      5sJd      AI:call,showdown
+ 267  BB        +1.00     0.00  JsTd      4h7s      Rand:call,showdown
+ 268  BTN       -3.75     0.08  5hQc      6d4d      AI:raise,Rand:call,showdown
+ 269  BB        +0.50     0.00  Td2s      6h4c      Rand:fold
+ 270  BTN       -0.50     0.11  3d4s      8dTh      AI:fold
+ 271  BB        +0.50     0.00  Ts7h      Qs6h      Rand:fold
+ 272  BTN       +1.00     0.07  Ac2s      3h8d      AI:raise,Rand:fold
+ 273  BB        +1.00     0.00  5d5c      8h9d      Rand:call,showdown
+ 274  BTN       -3.75     0.09  8hJc      TcAs      AI:raise,Rand:call,showdown
+ 275  BB        -1.00     0.00  5c7c      9hJs      Rand:call,showdown
+ 276  BTN       +1.00     0.09  Kh9s      9h2c      AI:raise,Rand:fold
+ 277  BB        +0.50     0.00  5s6d      5hQs      Rand:fold
+ 278  BTN       +1.00     0.08  Qs9h      6d3s      AI:raise,Rand:fold
+ 279  BB        +0.50     0.00  Tc4h      Ah9h      Rand:fold
+ 280  BTN       -3.75     0.10  5cTh      KsJc      AI:raise,Rand:call,showdown
+ 281  BB        +1.00     0.00  5hQc      7hQd      Rand:call,showdown
+ 282  BTN       -3.75     0.09  6hQc      8hTc      AI:raise,Rand:raise,AI:foldto3bet
+ 283  BB        -1.00     0.00  9cTh      Ad4c      Rand:call,showdown
+ 284  BTN       +1.00     0.07  9s8c      6c8s      AI:call,showdown
+ 285  BB        -1.00     0.00  5h8d      9hTh      Rand:call,showdown
+ 286  BTN       -3.75     0.08  2c5c      3d9h      AI:raise,Rand:call,showdown
+ 287  BB        +1.00     0.00  6h8d      5cKd      Rand:call,showdown
+ 288  BTN       +3.75     0.08  6sJs      JdQc      AI:raise,Rand:call,showdown
+ 289  BB        +0.50     0.00  9d8d      TsTh      Rand:fold
+ 290  BTN       +3.75     0.08  5hQh      3h6s      AI:raise,Rand:call,showdown
+ 291  BB        -1.00     0.00  8h4d      Js5s      Rand:call,showdown
+ 292  BTN       +3.75     0.08  Ts7h      TdJh      AI:raise,Rand:call,showdown
+ 293  BB        +3.53     0.00  4hQc      Tc9d      Rand:raise,AI:call,showdown
+ 294  BTN       +1.00     0.14  2d7h      8dJs      AI:raise,Rand:fold
+ 295  BB        +1.00     0.00  KsJh      4d9s      Rand:call,showdown
+ 296  BTN       +1.00     0.08  JsTd      2dAs      AI:raise,Rand:fold
+ 297  BB        +0.50     0.00  Qh3c      4h2c      Rand:fold
+ 298  BTN       -3.75     0.07  6s7s      TsTc      AI:raise,Rand:call,showdown
+ 299  BB        +0.50     0.00  Ks7h      5h3h      Rand:fold
+ 300  BTN       +1.00     0.07  7hTd      2hAc      AI:raise,Rand:fold
+ 301  BB        -1.00     0.00  2d7s      3dAs      Rand:raise,AI:fold
+ 302  BTN       -3.75     0.07  Qc3h      As5s      AI:raise,Rand:call,showdown
+ 303  BB        +0.50     0.00  9d7h      JsQs      Rand:fold
+ 304  BTN       +3.75     0.07  5dAd      7h9c      AI:raise,Rand:call,showdown
+ 305  BB        -1.00     0.00  9c3d      Ac9h      Rand:call,showdown
+ 306  BTN       +3.75     0.06  7hJs      ThQc      AI:raise,Rand:call,showdown
+ 307  BB        -1.00     0.00  Jc6d      JhQc      Rand:call,showdown
+ 308  BTN       +0.00     0.08  Qs2c      9dQh      AI:raise,Rand:call,showdown
+ 309  BB        +3.63     0.00  KsJh      Js4d      Rand:raise,AI:raise,Rand:foldto3bet
+ 310  BTN       +1.00     0.09  Kc9c      6c8d      AI:raise,Rand:fold
+ 311  BB        +0.50     0.00  7d2d      9hAs      Rand:fold
+ 312  BTN       -3.75     0.09  Kh9d      8dTc      AI:raise,Rand:call,showdown
+ 313  BB        +0.50     0.00  Ac9d      Qd7h      Rand:fold
+ 314  BTN       -3.75     0.14  Qd7h      5h9c      AI:raise,Rand:call,showdown
+ 315  BB        +0.50     0.00  7c7d      Ac4h      Rand:fold
+ 316  BTN       +3.75     0.12  9sAd      9hKc      AI:raise,Rand:call,showdown
+ 317  BB        +1.00     0.00  TsTd      5hTh      Rand:call,showdown
+ 318  BTN       +3.75     0.10  2dQs      3h3c      AI:raise,Rand:call,showdown
+ 319  BB        +3.11     0.00  Qh4h      3d4d      Rand:raise,AI:call,showdown
+ 320  BTN       +3.75     0.09  2d2s      8d6d      AI:raise,Rand:call,showdown
+ 321  BB        +0.50     0.00  JsKs      Ad4h      Rand:fold
+ 322  BTN       -1.00     0.11  5c9h      QsAd      AI:call,showdown
+ 323  BB        +0.50     0.00  8d3h      6cTc      Rand:fold
+ 324  BTN       +1.00     0.08  QhQs      9sAh      AI:raise,Rand:fold
+ 325  BB        -1.00     0.00  5h4c      Qh3d      Rand:call,showdown
+ 326  BTN       +3.75     0.08  Tc3c      Kd5s      AI:raise,Rand:call,showdown
+ 327  BB        +0.50     0.00  Kc6h      Ah5c      Rand:fold
+ 328  BTN       +1.00     0.08  3sTd      2s4s      AI:call,showdown
+ 329  BB        +0.50     0.00  3cAh      TcKh      Rand:fold
+ 330  BTN       +3.75     0.08  5cTc      9d8h      AI:raise,Rand:call,showdown
+ 331  BB        -1.00     0.00  Jd5h      Kd2c      Rand:call,showdown
+ 332  BTN       -3.75     0.13  Qd2d      5cAh      AI:raise,Rand:call,showdown
+ 333  BB        +0.50     0.00  5dTh      6dAh      Rand:fold
+ 334  BTN       +1.00     0.08  Ad4d      4c8s      AI:raise,Rand:fold
+ 335  BB        +0.00     0.00  9d7h      8s4h      Rand:call,showdown
+ 336  BTN       -0.50     0.08  2d4d      9cTd      AI:fold
+ 337  BB        +0.50     0.00  6c9c      Kc9s      Rand:fold
+ 338  BTN       +3.75     0.09  4cQs      2hKc      AI:raise,Rand:call,showdown
+ 339  BB        +1.00     0.00  Jc3d      5h4h      Rand:call,showdown
+ 340  BTN       -3.75     0.10  Kd4s      9cAh      AI:raise,Rand:call,showdown
+ 341  BB        -1.00     0.00  Td3h      5c9s      Rand:raise,AI:fold
+ 342  BTN       -3.75     0.12  Kd3s      8hJd      AI:raise,Rand:call,showdown
+ 343  BB        -1.00     0.00  2cQd      JdJc      Rand:call,showdown
+ 344  BTN       -3.75     0.07  7h5h      4h6h      AI:raise,Rand:call,showdown
+ 345  BB        -1.00     0.00  4s9h      Ks4d      Rand:raise,AI:fold
+ 346  BTN       +1.00     0.08  4dKd      5dQd      AI:raise,Rand:fold
+ 347  BB        +1.00     0.00  AdAh      4sKc      Rand:call,showdown
+ 348  BTN       +3.75     0.07  KdJh      9hQs      AI:raise,Rand:call,showdown
+ 349  BB        +1.00     0.00  QhQs      6d2c      Rand:call,showdown
+ 350  BTN       +3.75     0.12  KhQs      2cQc      AI:raise,Rand:call,showdown
+ 351  BB        +1.00     0.00  6c3c      4dQc      Rand:call,showdown
+ 352  BTN       +3.75     0.09  As8d      Jh4d      AI:raise,Rand:call,showdown
+ 353  BB        +0.50     0.00  JdKh      2sKc      Rand:fold
+ 354  BTN       -1.00     0.08  6h5s      9h7s      AI:call,showdown
+ 355  BB        -1.00     0.00  AhTs      7c4s      Rand:call,showdown
+ 356  BTN       +1.00     0.09  Ad4s      JdJh      AI:raise,Rand:fold
+ 357  BB        -1.00     0.00  Qs3s      Qh9d      Rand:call,showdown
+ 358  BTN       +1.00     0.08  2hKc      6c9h      AI:raise,Rand:fold
+ 359  BB        -1.00     0.00  7dJd      Td9d      Rand:call,showdown
+ 360  BTN       -1.00     0.07  9c8d      QcJd      AI:call,showdown
+ 361  BB        +1.00     0.00  9d4h      Td2h      Rand:call,showdown
+ 362  BTN       -0.50     0.07  9d8c      4sKh      AI:fold
+ 363  BB        +1.00     0.00  4cTs      6h8d      Rand:call,showdown
+ 364  BTN       +1.00     0.08  7s2h      3hAc      AI:call,showdown
+ 365  BB        +1.00     0.00  3s5h      JcQd      Rand:call,showdown
+ 366  BTN       -1.00     0.06  4c5d      AcAs      AI:call,showdown
+ 367  BB        +2.66     0.00  QsKh      2c7c      Rand:raise,AI:raise,Rand:foldto3bet
+ 368  BTN       +1.00     0.15  8hKc      4s4c      AI:raise,Rand:fold
+ 369  BB        +1.00     0.00  Th2c      6s7s      Rand:call,showdown
+ 370  BTN       -3.75     0.07  9cKd      Kh2d      AI:raise,Rand:call,showdown
+ 371  BB        +0.50     0.00  5cKh      Ts6d      Rand:fold
+ 372  BTN       +1.00     0.10  8h6h      8dJd      AI:raise,Rand:fold
+ 373  BB        -1.00     0.00  Ts8s      9d3c      Rand:call,showdown
+ 374  BTN       +3.75     0.16  Ac4d      7sTh      AI:raise,Rand:call,showdown
+ 375  BB        -1.00     0.00  4c4h      QdJs      Rand:call,showdown
+ 376  BTN       -1.00     0.09  Td3h      4hJs      AI:call,showdown
+ 377  BB        -3.93     0.00  Ts6h      Js7h      Rand:raise,AI:call,showdown
+ 378  BTN       +3.75     0.10  Th3h      Qh7d      AI:raise,Rand:call,showdown
+ 379  BB        +0.50     0.00  KsAd      Td5d      Rand:fold
+ 380  BTN       +3.75     0.11  KsAh      8hJh      AI:raise,Rand:call,showdown
+ 381  BB        -1.00     0.00  6sJh      9c2d      Rand:call,showdown
+ 382  BTN       -0.50     0.13  2c8s      7hAs      AI:fold
+ 383  BB        +1.00     0.00  5h6h      JdQh      Rand:call,showdown
+ 384  BTN       +1.00     0.11  4d4s      9d5c      AI:raise,Rand:fold
+ 385  BB        +1.00     0.00  7s8c      5hJs      Rand:call,showdown
+ 386  BTN       -3.75     0.16  JdTd      Ah8s      AI:raise,Rand:call,showdown
+ 387  BB        +0.50     0.00  QhQc      5h9h      Rand:fold
+ 388  BTN       +1.00     0.12  JsTh      5h7d      AI:raise,Rand:fold
+ 389  BB        -1.00     0.00  Ah4s      4dQd      Rand:call,showdown
+ 390  BTN       -1.00     0.17  2d5c      6h9d      AI:call,showdown
+ 391  BB        -1.00     0.00  7c6s      Kh3h      Rand:call,showdown
+ 392  BTN       +1.00     0.18  9hTs      QsQh      AI:raise,Rand:fold
+ 393  BB        +0.50     0.00  5c4d      3dKc      Rand:fold
+ 394  BTN       -3.75     0.09  Th7d      9h7c      AI:raise,Rand:raise,AI:foldto3bet
+ 395  BB        +0.50     0.00  ThAs      9sTs      Rand:fold
+ 396  BTN       +3.75     0.09  AdTh      KsJd      AI:raise,Rand:call,showdown
+ 397  BB        +0.50     0.00  4sQh      Ah9c      Rand:fold
+ 398  BTN       -3.75     0.11  7c5c      7d9d      AI:raise,Rand:call,showdown
+ 399  BB        +1.00     0.00  Kd9s      4c3s      Rand:call,showdown
+ 400  BTN       +1.00     0.08  5h5s      QcJc      AI:raise,Rand:fold
+ 401  BB        +7.74     0.00  JdKs      5c4s      Rand:raise,AI:raise,Rand:call3bet,showdown
+ 402  BTN       +3.75     0.09  ThQd      3d9d      AI:raise,Rand:call,showdown
+ 403  BB        -1.00     0.00  8s7h      7c2c      Rand:call,showdown
+ 404  BTN       +1.00     0.15  9cAd      7sKd      AI:raise,Rand:fold
+ 405  BB        +0.50     0.00  6cJd      As8d      Rand:fold
+ 406  BTN       -1.00     0.08  9s4c      7cQh      AI:call,showdown
+ 407  BB        -1.00     0.00  4hQd      7h6s      Rand:call,showdown
+ 408  BTN       +1.00     0.09  6s9s      3d4d      AI:raise,Rand:fold
+ 409  BB        +1.00     0.00  Ts5s      6d9d      Rand:call,showdown
+ 410  BTN       +3.75     0.08  7cJs      QhJd      AI:raise,Rand:call,showdown
+ 411  BB        -3.64     0.00  As2s      8c7s      Rand:raise,AI:call,showdown
+ 412  BTN       -3.75     0.10  5h5s      Td4s      AI:raise,Rand:raise,AI:foldto3bet
+ 413  BB        +0.50     0.00  9h8c      2cTs      Rand:fold
+ 414  BTN       -1.00     0.09  4hTc      5sAd      AI:call,showdown
+ 415  BB        -1.00     0.00  4c7s      7c8d      Rand:call,showdown
+ 416  BTN       +1.00     0.17  2h9s      6hTs      AI:raise,Rand:fold
+ 417  BB        +0.50     0.00  6s8c      JhTd      Rand:fold
+ 418  BTN       -0.50     0.15  4d3s      KhAd      AI:fold
+ 419  BB        -1.00     0.00  9d2d      QsQc      Rand:call,showdown
+ 420  BTN       -3.75     0.15  AdJd      9c7d      AI:raise,Rand:call,showdown
+ 421  BB        +0.50     0.00  3cTd      Kc5d      Rand:fold
+ 422  BTN       +3.75     0.18  9dQs      2d4d      AI:raise,Rand:call,showdown
+ 423  BB        +0.50     0.00  TdKh      Jd7h      Rand:fold
+ 424  BTN       -0.50     0.19  4h3d      8cTd      AI:fold
+ 425  BB        +0.50     0.00  Qc4h      6h7s      Rand:fold
+ 426  BTN       +1.00     0.10  4c5s      Ac7c      AI:call,showdown
+ 427  BB        +0.50     0.00  2dQd      6c6d      Rand:fold
+ 428  BTN       +3.75     0.10  Ah2h      Qd5s      AI:raise,Rand:call,showdown
+ 429  BB        +1.00     0.00  2cAh      6sAs      Rand:call,showdown
+ 430  BTN       -3.75     0.15  4cAh      9sQs      AI:raise,Rand:call,showdown
+ 431  BB        -1.00     0.00  3h8d      KhJs      Rand:raise,AI:fold
+ 432  BTN       -3.75     0.08  QsTd      4hKd      AI:raise,Rand:raise,AI:foldto3bet
+ 433  BB        +0.50     0.00  KhJh      7c7h      Rand:fold
+ 434  BTN       +1.00     0.09  QhKh      Tc6h      AI:raise,Rand:fold
+ 435  BB        +0.50     0.00  5hJs      Jc2h      Rand:fold
+ 436  BTN       +1.00     0.15  6d5h      As9c      AI:call,showdown
+ 437  BB        +0.50     0.00  4cAc      JhJc      Rand:fold
+ 438  BTN       -3.75     0.14  7d3d      As9d      AI:raise,Rand:call,showdown
+ 439  BB        +0.50     0.00  Ks3d      JdTd      Rand:fold
+ 440  BTN       -1.00     0.14  2s5c      KhKd      AI:call,showdown
+ 441  BB        +1.00     0.00  6cQc      5dKh      Rand:call,showdown
+ 442  BTN       +1.00     0.09  5d3h      QhKd      AI:call,showdown
+ 443  BB        +1.00     0.00  AcQd      JhQs      Rand:call,showdown
+ 444  BTN       -0.50     0.14  3c4h      Jd5s      AI:fold
+ 445  BB        +0.50     0.00  TsQs      Td3c      Rand:fold
+ 446  BTN       +0.00     0.09  4sKc      Kh7c      AI:raise,Rand:call,showdown
+ 447  BB        +1.00     0.00  2h8c      TdJc      Rand:call,showdown
+ 448  BTN       +1.00     0.14  3dKd      Ah5h      AI:raise,Rand:fold
+ 449  BB        -1.00     0.00  8d2d      JhTh      Rand:call,showdown
+ 450  BTN       -3.75     0.10  4cAc      6h3d      AI:raise,Rand:raise,AI:foldto3bet
+ 451  BB        +1.00     0.00  8c8s      4c3h      Rand:call,showdown
+ 452  BTN       +1.00     0.08  Qc4s      7dTc      AI:raise,Rand:fold
+ 453  BB        -1.00     0.00  QcQs      5sKh      Rand:call,showdown
+ 454  BTN       -3.75     0.11  5sQd      8cJh      AI:raise,Rand:call,showdown
+ 455  BB        +3.20     0.00  9hQs      JdTd      Rand:raise,AI:raise,Rand:foldto3bet
+ 456  BTN       +1.00     0.09  Qc8c      AcJc      AI:raise,Rand:fold
+ 457  BB        -1.00     0.00  4c8d      5c4s      Rand:raise,AI:fold
+ 458  BTN       -3.75     0.15  5hKs      8h2s      AI:raise,Rand:raise,AI:foldto3bet
+ 459  BB        +1.00     0.00  ThKh      6dQh      Rand:call,showdown
+ 460  BTN       +1.00     0.11  6d8d      2sKc      AI:raise,Rand:fold
+ 461  BB        +0.50     0.00  QsAc      6hKh      Rand:fold
+ 462  BTN       +1.00     0.12  9s2h      TdQh      AI:call,showdown
+ 463  BB        +1.00     0.00  AdTd      Qs8c      Rand:call,showdown
+ 464  BTN       -1.00     0.20  3c8s      4cJd      AI:call,showdown
+ 465  BB        +0.50     0.00  7d4h      3c7h      Rand:fold
+ 466  BTN       -3.75     0.11  Qc8c      Qh4d      AI:raise,Rand:call,showdown
+ 467  BB        +0.50     0.00  2s6d      Qd5s      Rand:fold
+ 468  BTN       +1.00     0.12  Kc4s      9c3c      AI:raise,Rand:fold
+ 469  BB        +0.50     0.00  9c2c      7c8s      Rand:fold
+ 470  BTN       -3.75     0.08  6d3h      Qs8c      AI:raise,Rand:call,showdown
+ 471  BB        -2.70     0.00  5c9s      4sAc      Rand:raise,AI:call,showdown
+ 472  BTN       +3.75     0.14  KsAh      6dAs      AI:raise,Rand:call,showdown
+ 473  BB        +0.50     0.00  QcAc      Kd3h      Rand:fold
+ 474  BTN       -1.00     0.10  5c4s      8s2s      AI:call,showdown
+ 475  BB        +0.50     0.00  QdJd      8hJh      Rand:fold
+ 476  BTN       +3.75     0.12  3cJc      7c5d      AI:raise,Rand:call,showdown
+ 477  BB        +1.00     0.00  QsAd      4h7h      Rand:call,showdown
+ 478  BTN       +3.75     0.11  8hKc      ThJd      AI:raise,Rand:call,showdown
+ 479  BB        -1.00     0.00  Ac2d      Ah9h      Rand:call,showdown
+ 480  BTN       +1.00     0.10  Qh9c      Jh2d      AI:raise,Rand:fold
+ 481  BB        +0.50     0.00  8c9s      KdTd      Rand:fold
+ 482  BTN       -3.75     0.15  8hAh      2s4c      AI:raise,Rand:raise,AI:foldto3bet
+ 483  BB        +2.89     0.00  Ks4c      Qd2c      Rand:raise,AI:call,showdown
+ 484  BTN       -3.75     0.19  KcAd      6d7c      AI:raise,Rand:call,showdown
+ 485  BB        +0.50     0.00  TsQc      JcTd      Rand:fold
+ 486  BTN       +1.00     0.15  3c9s      4sQs      AI:raise,Rand:fold
+ 487  BB        +0.50     0.00  6s9c      7dAh      Rand:fold
+ 488  BTN       +1.00     0.10  4sAh      9dJs      AI:raise,Rand:fold
+ 489  BB        +0.50     0.00  4s4c      9h9s      Rand:fold
+ 490  BTN       +3.75     0.10  Tc3c      As5s      AI:raise,Rand:call,showdown
+ 491  BB        -1.00     0.00  3cTh      TdKc      Rand:call,showdown
+ 492  BTN       -3.75     0.10  9hAs      9s7c      AI:raise,Rand:call,showdown
+ 493  BB        +0.50     0.00  7d6h      Ad5h      Rand:fold
+ 494  BTN       +1.00     0.09  JcKd      2h7s      AI:raise,Rand:fold
+ 495  BB        +1.00     0.00  Jd8c      9c2h      Rand:call,showdown
+ 496  BTN       +1.00     0.09  Kd4h      2sTc      AI:raise,Rand:fold
+ 497  BB        +0.50     0.00  Jh4h      8dTs      Rand:fold
+ 498  BTN       +1.00     0.19  Jc5d      8c3s      AI:raise,Rand:fold
+ 499  BB        +1.00     0.00  AsJd      7h8c      Rand:call,showdown

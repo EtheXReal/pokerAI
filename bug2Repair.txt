@@ -1,0 +1,765 @@
+================================================================================
+🤖 AI vs Random - 完整测试（包含翻后决策）
+================================================================================
+
+配置:
+  手数: 32
+  精度: iterations=1000, max_combos=100
+  包含: 翻前 + Flop + Turn + River完整决策
+  开始时间: 2025-11-12 05:23:22
+
+初始化查找表...
+查找表就绪
+
+================================================================================
+Hand #1 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: JhAs (BTN)
+  Random: Ks8h
+  Pot: 1.5BB
+加载查找表从: /home/user/pokerAI/advisor/range_engine/evaluator_lookup_table_v2.pkl
+加载查找表从: /home/user/pokerAI/advisor/range_engine/evaluator_lookup_table_v2.pkl
+加载查找表从: /home/user/pokerAI/advisor/range_engine/evaluator_lookup_table_v2.pkl
+加载查找表从: /home/user/pokerAI/advisor/range_engine/evaluator_lookup_table_v2.pkl
+加载了 2598960 个条目
+加载了 2598960 个条目
+加载了 2598960 个条目
+加载了 2598960 个条目
+  AI raises to 2.5BB, pot=3.5BB
+  Random calls 1.5BB, pot=5.0BB
+
+  === Flop: Kh Td Kc ===
+  Pot: 5.0BB
+  Random checks
+  AI checks
+
+  === Turn: 6s ===
+  Board: Kh Td Kc 6s
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === River: 3s ===
+  Board: Kh Td Kc 6s 3s
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: THREE_OF_A_KIND
+  Random wins 5.0BB
+
+  >>> AI Profit: -2.50BB
+
+================================================================================
+Hand #2 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 9dKh (BB)
+  Random: Qd8s
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: 8h 4d 2h ===
+  Pot: 2.0BB
+  AI checks
+  Random bets 1.0BB, pot=3.0BB
+  AI calls 1.0BB, pot=4.0BB
+
+  === Turn: 9c ===
+  Board: 8h 4d 2h 9c
+  Pot: 4.0BB
+  AI checks, Random checks
+
+  === River: 6c ===
+  Board: 8h 4d 2h 9c 6c
+  Pot: 4.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: ONE_PAIR
+  AI wins 4.0BB!
+
+  >>> AI Profit: +2.00BB
+
+================================================================================
+Hand #3 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 5dJs (BTN)
+  Random: Ts3c
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #4 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 7h2s (BB)
+  Random: 7d4d
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Kh 9c 3c ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: Qd ===
+  Board: Kh 9c 3c Qd
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: 5s ===
+  Board: Kh 9c 3c Qd 5s
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: HIGH_CARD
+  Random: HIGH_CARD
+  Tie (split pot)
+
+  >>> AI Profit: +0.00BB
+
+================================================================================
+Hand #5 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: Qh4c (BTN)
+  Random: JsTh
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #6 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: QhKh (BB)
+  Random: 3cKd
+  Pot: 1.5BB
+  Random folds
+
+  >>> AI Profit: +0.50BB
+
+================================================================================
+Hand #7 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 7cJd (BTN)
+  Random: Qh4c
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #8 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 6dKd (BB)
+  Random: 8s4c
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Jh Kc 2h ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: 7c ===
+  Board: Jh Kc 2h 7c
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: Js ===
+  Board: Jh Kc 2h 7c Js
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: TWO_PAIR
+  Random: ONE_PAIR
+  AI wins 2.0BB!
+
+  >>> AI Profit: +1.00BB
+
+================================================================================
+Hand #9 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 9d4h (BTN)
+  Random: Jc9h
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #10 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 7cTc (BB)
+  Random: 3h6d
+  Pot: 1.5BB
+  Random folds
+
+  >>> AI Profit: +0.50BB
+
+================================================================================
+Hand #11 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: As9c (BTN)
+  Random: 9hKs
+  Pot: 1.5BB
+  AI raises to 2.5BB, pot=3.5BB
+  Random calls 1.5BB, pot=5.0BB
+
+  === Flop: 2c 7h Kh ===
+  Pot: 5.0BB
+  Random checks
+  AI checks
+
+  === Turn: Th ===
+  Board: 2c 7h Kh Th
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === River: 2h ===
+  Board: 2c 7h Kh Th 2h
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: FLUSH
+  Random wins 5.0BB
+
+  >>> AI Profit: -2.50BB
+
+================================================================================
+Hand #12 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: Jh8c (BB)
+  Random: 4cAd
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Kc Jd 6s ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: As ===
+  Board: Kc Jd 6s As
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: 9d ===
+  Board: Kc Jd 6s As 9d
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: ONE_PAIR
+  Random wins 2.0BB
+
+  >>> AI Profit: -1.00BB
+
+================================================================================
+Hand #13 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 3s8d (BTN)
+  Random: JdKc
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #14 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: Qh5h (BB)
+  Random: KsQs
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: 2c 4s 2s ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: Ah ===
+  Board: 2c 4s 2s Ah
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: Ac ===
+  Board: 2c 4s 2s Ah Ac
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: TWO_PAIR
+  Random: TWO_PAIR
+  Random wins 2.0BB
+
+  >>> AI Profit: -1.00BB
+
+================================================================================
+Hand #15 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 2cQh (BTN)
+  Random: 8d7h
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #16 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 2s3h (BB)
+  Random: Kh3c
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: 5h 8c 3s ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: Jc ===
+  Board: 5h 8c 3s Jc
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: 5d ===
+  Board: 5h 8c 3s Jc 5d
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: TWO_PAIR
+  Random: TWO_PAIR
+  Random wins 2.0BB
+
+  >>> AI Profit: -1.00BB
+
+================================================================================
+Hand #17 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 6s5c (BTN)
+  Random: 2dJd
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #18 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 6h9c (BB)
+  Random: As4d
+  Pot: 1.5BB
+  Random folds
+
+  >>> AI Profit: +0.50BB
+
+================================================================================
+Hand #19 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 3dKd (BTN)
+  Random: Th5d
+  Pot: 1.5BB
+  AI raises to 2.5BB, pot=3.5BB
+  Random folds
+
+  >>> AI Profit: +1.00BB
+
+================================================================================
+Hand #20 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: TsKd (BB)
+  Random: 2d7d
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Jd Js Qc ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: Qs ===
+  Board: Jd Js Qc Qs
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: Qh ===
+  Board: Jd Js Qc Qs Qh
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: FULL_HOUSE
+  Random: FULL_HOUSE
+  Tie (split pot)
+
+  >>> AI Profit: +0.00BB
+
+================================================================================
+Hand #21 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: Qh2h (BTN)
+  Random: 8d2d
+  Pot: 1.5BB
+  AI raises to 2.5BB, pot=3.5BB
+  Random calls 1.5BB, pot=5.0BB
+
+  === Flop: Ts 7h Ac ===
+  Pot: 5.0BB
+  Random bets 3.8BB, pot=8.8BB
+  AI calls 3.8BB, pot=12.7BB
+
+  === Turn: 7c ===
+  Board: Ts 7h Ac 7c
+  Pot: 12.7BB
+  Random checks, AI checks
+
+  === River: 9s ===
+  Board: Ts 7h Ac 7c 9s
+  Pot: 12.7BB
+  Random checks, AI checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: ONE_PAIR
+  AI wins 12.7BB!
+
+  >>> AI Profit: +6.35BB
+
+================================================================================
+Hand #22 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 9c8d (BB)
+  Random: 3sKd
+  Pot: 1.5BB
+  Random folds
+
+  >>> AI Profit: +0.50BB
+
+================================================================================
+Hand #23 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: TdQh (BTN)
+  Random: JdJc
+  Pot: 1.5BB
+  AI raises to 2.5BB, pot=3.5BB
+  Random calls 1.5BB, pot=5.0BB
+
+  === Flop: 2h 3h 5c ===
+  Pot: 5.0BB
+  Random checks
+  AI checks
+
+  === Turn: Ks ===
+  Board: 2h 3h 5c Ks
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === River: 7h ===
+  Board: 2h 3h 5c Ks 7h
+  Pot: 5.0BB
+  Random checks, AI checks
+
+  === Showdown ===
+  AI: HIGH_CARD
+  Random: ONE_PAIR
+  Random wins 5.0BB
+
+  >>> AI Profit: -2.50BB
+
+================================================================================
+Hand #24 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: Qs5h (BB)
+  Random: 4h5d
+  Pot: 1.5BB
+  Random folds
+
+  >>> AI Profit: +0.50BB
+
+================================================================================
+Hand #25 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: KhKs (BTN)
+  Random: Qd5s
+  Pot: 1.5BB
+  AI raises to 2.5BB, pot=3.5BB
+
+  === Flop: Ah 7s 8d ===
+  Pot: 3.5BB
+  Random checks
+  AI bets 8.1BB, pot=11.6BB
+  Random calls 8.1BB, pot=19.7BB
+
+  === Turn: 6s ===
+  Board: Ah 7s 8d 6s
+  Pot: 19.7BB
+  Random checks, AI checks
+
+  === River: 7d ===
+  Board: Ah 7s 8d 6s 7d
+  Pot: 19.7BB
+  Random checks, AI checks
+
+  === Showdown ===
+  AI: TWO_PAIR
+  Random: ONE_PAIR
+  AI wins 19.7BB!
+
+  >>> AI Profit: +9.09BB
+
+================================================================================
+Hand #26 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 8s6c (BB)
+  Random: Kh2h
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: 4h Js 4c ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: 6d ===
+  Board: 4h Js 4c 6d
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: 4d ===
+  Board: 4h Js 4c 6d 4d
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: FULL_HOUSE
+  Random: THREE_OF_A_KIND
+  AI wins 2.0BB!
+
+  >>> AI Profit: +1.00BB
+
+================================================================================
+Hand #27 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: Jh8d (BTN)
+  Random: 3d5h
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #28 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 5c4d (BB)
+  Random: Jd6c
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Kd 9s Js ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: 4c ===
+  Board: Kd 9s Js 4c
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: Td ===
+  Board: Kd 9s Js 4c Td
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: ONE_PAIR
+  Random wins 2.0BB
+
+  >>> AI Profit: -1.00BB
+
+================================================================================
+Hand #29 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 5s3c (BTN)
+  Random: Jd2h
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #30 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 3d6h (BB)
+  Random: 6s8h
+  Pot: 1.5BB
+  Random raises to 2.5BB, pot=3.5BB
+  AI calls 1.5BB, pot=5.0BB
+
+  === Flop: Kc 7s 5c ===
+  Pot: 5.0BB
+  AI checks
+  Random checks
+
+  === Turn: Qc ===
+  Board: Kc 7s 5c Qc
+  Pot: 5.0BB
+  AI checks, Random checks
+
+  === River: 5h ===
+  Board: Kc 7s 5c Qc 5h
+  Pot: 5.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: ONE_PAIR
+  Random wins 5.0BB
+
+  >>> AI Profit: -2.50BB
+
+================================================================================
+Hand #31 - AI Position: BTN
+================================================================================
+
+  === 翻前 ===
+  AI: 4s9h (BTN)
+  Random: Qh6c
+  Pot: 1.5BB
+  AI folds
+
+  >>> AI Profit: -0.50BB
+
+================================================================================
+Hand #32 - AI Position: BB
+================================================================================
+
+  === 翻前 ===
+  AI: 5h4c (BB)
+  Random: TcKs
+  Pot: 1.5BB
+  Random calls 0.5BB, pot=2.0BB
+  AI checks
+
+  === Flop: Kh 7c As ===
+  Pot: 2.0BB
+  AI checks
+  Random checks
+
+  === Turn: 2s ===
+  Board: Kh 7c As 2s
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === River: Ac ===
+  Board: Kh 7c As 2s Ac
+  Pot: 2.0BB
+  AI checks, Random checks
+
+  === Showdown ===
+  AI: ONE_PAIR
+  Random: TWO_PAIR
+  Random wins 2.0BB
+
+  >>> AI Profit: -1.00BB
+
+================================================================================
+📊 测试结果汇总
+================================================================================
+
+总手数: 32
+总用时: 157.9秒
+平均每手: 4.9秒
+
+AI总盈亏: +2.93 BB
+AI BB/100: +9.17 BB/100手
+
+BTN位置 (16手):
+  盈亏: +3.93 BB
+  BB/100: +24.59
+
+BB位置 (16手):
+  盈亏: -1.00 BB
+  BB/100: -6.25
+
+详细结果已保存到: /home/user/pokerAI/test_full_postflop_32hands_result.txt
+
+测试完成！

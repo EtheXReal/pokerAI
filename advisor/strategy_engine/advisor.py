@@ -15,9 +15,11 @@ sys.path.append('/home/user/pokerAI')
 
 # Range Engine
 from advisor.range_engine import (
-    Range, Hand, Board, EquityCalculator, BoardTexture,
+    Range, Hand, Board, BoardTexture,
     get_open_range, parse_range_dict
 )
+# 使用优化的Equity计算器（5-8x加速）
+from advisor.range_engine.calculator_optimized import OptimizedEquityCalculator as EquityCalculator
 
 # Opponent Modeling
 from advisor.opponent_modeling import (
@@ -100,7 +102,7 @@ class ProLevelAdvisor:
         """
         # 三层架构
         self.range_estimator = RangeEstimator()
-        self.equity_calculator = EquityCalculator(iterations=1000)  # 性能优化：10000→1000
+        self.equity_calculator = EquityCalculator(iterations=1000)  # 原始精度
         self.gto_baseline = GTOBaseline()
         self.classifier = PlayerClassifier()
 
@@ -201,7 +203,7 @@ class ProLevelAdvisor:
 
         # 场景1: 翻前深筹码 → 需要精确
         if game_state.street == 'preflop' and spr > 10:
-            return 1000
+            return 1000  # 原始精度
 
         # 场景2: 小底池 → 快速估算即可
         if game_state.pot_size < 5:  # 5BB以下
@@ -209,7 +211,7 @@ class ProLevelAdvisor:
 
         # 场景3: 边缘决策 (equity 40%-60%) → 需要精确
         if 0.4 < equity_estimate < 0.6:
-            return 1000
+            return 1000  # 原始精度
 
         # 场景4: 明显决策 (equity <30% 或 >70%) → 粗略即可
         if equity_estimate < 0.3 or equity_estimate > 0.7:
@@ -220,7 +222,7 @@ class ProLevelAdvisor:
             return 500
 
         # 默认
-        return 1000
+        return 1000  # 原始精度
 
     def _estimate_ranges(self, game_state: GameState) -> tuple:
         """推断hero和villain范围"""
@@ -275,8 +277,8 @@ class ProLevelAdvisor:
             if not valid_hands:
                 return 0.5
 
-            # 限制combos数量（性能优化）
-            max_combos = 100
+            # 限制combos数量（避免过度计算）
+            max_combos = 100  # 原始精度
             sampled_hands = valid_hands[:max_combos]
 
             # 获取动态迭代次数（上下文感知）

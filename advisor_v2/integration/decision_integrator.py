@@ -275,6 +275,13 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 转换action_history（使用helper方法）
         action_history = self._convert_action_history(game_state)
 
+        # 判断是否facing bet（从game_state直接获取，不依赖action_history推断）
+        facing_bet = False
+        facing_bet_size = 0.0
+        if hasattr(game_state, 'facing_bet') and game_state.facing_bet is not None:
+            facing_bet = game_state.facing_bet > 0.01
+            facing_bet_size = game_state.facing_bet if facing_bet else 0.0
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
@@ -290,6 +297,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             equity_info=equity_info,
             range_advantage=range_advantage,
             board_analysis=board_analysis,
+            facing_bet=facing_bet,
+            facing_bet_size=facing_bet_size,
         )
 
         return ctx

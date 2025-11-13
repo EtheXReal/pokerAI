@@ -75,7 +75,9 @@ class StrategyContext:
         self.is_in_position = position_order.get(self.position, 0) > position_order.get(self.villain_position, 0)
 
         # 判断是否facing bet
-        if self.action_history:
+        # 仅在facing_bet和facing_bet_size都是默认值时，才从action_history推断
+        # 否则，使用显式设置的值（由DecisionIntegrator提供）
+        if not self.facing_bet and self.facing_bet_size == 0.0 and self.action_history:
             last_action = self.action_history[-1]
             self.facing_bet = last_action.action in ['bet', 'raise']
             self.facing_bet_size = last_action.amount if self.facing_bet else 0.0

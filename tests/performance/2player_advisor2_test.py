@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 """
-advisor_v2完整翻后测试 - 真正的德州扑克
-包含完整的preflop/flop/turn/river决策流程，支持多轮加注
+2人对局advisor_v2测试 - 真正的德州扑克
 
-与test_advisor_v2_vs_random_32hands.py的关键区别：
+完整的preflop/flop/turn/river决策流程，支持多轮加注
+
+特性：
+- 完整的4个街道决策（真扑克，不是假扑克）
+- 支持多轮加注（bet → raise → 3-bet → 4-bet...）
+- 可插拔的对手系统（random/passive/aggressive/tight）
+- advisor_v2架构（DecisionIntegrator + RangeEngine + EquityEngine + BoardAnalyzer + GTOStrategy）
+
+与旧测试的区别：
 - 旧测试：只有翻前决策，然后直接showdown（假扑克）
-- 新测试：完整的4个街道决策（真扑克）
+- 本测试：完整的4个街道决策（真扑克）
 
-这才是advisor_v2需要的测试，因为：
+为什么advisor_v2需要真扑克测试：
 - EquityEngine需要board来计算equity
 - BoardAnalyzer需要board来分析texture
 - Range advantage分析需要翻后的equity分布
-- 支持多轮加注（bet → raise → 3-bet → 4-bet...）
 """
 import sys
 import os
@@ -32,6 +38,9 @@ from advisor_v2.analysis.range_engine import RangeEngine
 from advisor_v2.analysis.equity_engine import EquityEngine
 from advisor_v2.analysis.board_analyzer import BoardAnalyzer
 from advisor_v2.strategy.gto_strategy import GTOStrategy
+
+# 导入对手玩家接口
+from tests.performance.opponent_players import OpponentPlayer, create_opponent
 
 
 @dataclass
@@ -155,49 +164,10 @@ class AdvisorV2Player:
                 return 'check', 0.0
 
 
-class SimpleRandomPlayer:
-    """简单的随机玩家"""
-
-    def __init__(self, name: str = "Random"):
-        self.name = name
-
-    def decide(self, pot: float, facing_bet: float, stack: float) -> Tuple[str, float]:
-        """
-        随机决策 - 所有street一致
-        - 不facing bet: 1/3 bet, 2/3 check
-        - facing bet: 1/5 raise, 2/5 call, 2/5 fold （更合理的分布）
-
-        Returns:
-            (action, amount)
-        """
-        r = random.random()
-
-        if facing_bet > 0:
-            # 面对下注: 1/5 raise, 2/5 call, 2/5 fold
-            if r < 0.2:
-                # Raise: 随机尺度 2.0-3.5x
-                raise_size = facing_bet * random.uniform(2.0, 3.5)
-                return 'raise', min(raise_size, stack)
-            elif r < 0.6:
-                # Call: 跟注
-                return 'call', 0.0
-            else:
-                # Fold
-                return 'fold', 0.0
-        else:
-            # 未面对下注: 1/3 bet, 2/3 check
-            if r < 1.0 / 3.0:
-                # Bet: 随机尺度 0.33-1.0 pot
-                bet_size = pot * random.uniform(0.33, 1.0)
-                return 'bet', min(bet_size, stack)
-            else:
-                return 'check', 0.0
-
-
 def run_betting_round(
     street: str,
     ai_player: AdvisorV2Player,
-    random_player: SimpleRandomPlayer,
+    opponent_player: OpponentPlayer,
     ai_position: str,
     ai_hand: Hand,
     random_hand: Hand,
@@ -316,7 +286,7 @@ def run_betting_round(
                 bet_to_call=to_call
             )
         else:
-            action_type, amount = random_player.decide(pot, facing_bet, random_stack)
+            action_type, amount = opponent_player.decide(pot, facing_bet, random_stack)
 
         # === Action规范化和验证 ===
         # 1. 如果面对下注，"bet"应该是"raise"
@@ -665,7 +635,7 @@ def run_betting_round(
     return (None, pot, ai_stack, random_stack, ai_invested, random_invested)
 
 
-def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: SimpleRandomPlayer,
+def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, opponent_player: OpponentPlayer,
                    ai_position: str, starting_stack: float = 100.0, verbose: bool = True,
                    base_seed: int = 42) -> FullHandRecord:
     """
@@ -674,7 +644,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     Args:
         hand_num: 手牌编号
         ai_player: AI玩家
-        random_player: Random玩家
+        opponent_player: 对手玩家（可插拔）
         ai_position: AI位置 ('BTN' or 'BB')
         starting_stack: 起始筹码
         verbose: 是否打印详细信息
@@ -724,7 +694,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
         street='preflop',
         ai_player=ai_player,
-        random_player=random_player,
+        opponent_player=opponent_player,
         ai_position=ai_position,
         ai_hand=ai_hand,
         random_hand=random_hand,
@@ -757,7 +727,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
         street='flop',
         ai_player=ai_player,
-        random_player=random_player,
+        opponent_player=opponent_player,
         ai_position=ai_position,
         ai_hand=ai_hand,
         random_hand=random_hand,
@@ -791,7 +761,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
         street='turn',
         ai_player=ai_player,
-        random_player=random_player,
+        opponent_player=opponent_player,
         ai_position=ai_position,
         ai_hand=ai_hand,
         random_hand=random_hand,
@@ -825,7 +795,7 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     winner, pot, ai_stack, random_stack, ai_invested, random_invested = run_betting_round(
         street='river',
         ai_player=ai_player,
-        random_player=random_player,
+        opponent_player=opponent_player,
         ai_position=ai_position,
         ai_hand=ai_hand,
         random_hand=random_hand,
@@ -884,14 +854,16 @@ def play_full_hand(hand_num: int, ai_player: AdvisorV2Player, random_player: Sim
     )
 
 
-def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, seed: int = 42):
+def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, seed: int = 42,
+             opponent_type: str = 'random'):
     """运行完整测试"""
     print('=' * 80)
-    print('🤖 advisor_v2 vs Random - 完整翻后测试（真扑克 + 多轮加注）')
+    print(f'🤖 advisor_v2 vs {opponent_type.title()} - 完整翻后测试（真扑克 + 多轮加注）')
     print('=' * 80)
     print(f'\n配置:')
     print(f'  手数: {num_hands}')
     print(f'  线程数: {num_threads}')
+    print(f'  对手类型: {opponent_type}')
     print(f'  随机种子: {seed}')
     print(f'  包含: 翻前 + Flop + Turn + River 完整决策')
     print(f'  支持: 多轮加注（bet → raise → 3-bet → 4-bet...）')
@@ -903,7 +875,7 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, s
     start_time = time.time()
 
     ai = AdvisorV2Player("AdvisorV2")
-    random_player = SimpleRandomPlayer("RandomBot")
+    opponent = create_opponent(opponent_type, name=f"{opponent_type.title()}Bot")
 
     results: List[FullHandRecord] = []
 
@@ -916,7 +888,7 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, s
             print(f'{"="*80}')
 
         try:
-            result = play_full_hand(i, ai, random_player, ai_position, verbose=verbose, base_seed=seed)
+            result = play_full_hand(i, ai, opponent, ai_position, verbose=verbose, base_seed=seed)
             if verbose:
                 print(f"\n  >>> AI Profit: {result.ai_profit:+.2f}BB")
             return result
@@ -1037,12 +1009,16 @@ def run_test(num_hands: int = 32, num_threads: int = 4, verbose: bool = False, s
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='advisor_v2完整翻后测试')
+    parser = argparse.ArgumentParser(description='advisor_v2完整翻后测试 - 可插拔对手')
     parser.add_argument('--hands', type=int, default=32, help='测试手数（默认32）')
     parser.add_argument('--threads', type=int, default=4, help='线程数（默认4）')
+    parser.add_argument('--opponent', type=str, default='random',
+                       choices=['random', 'passive', 'aggressive', 'tight'],
+                       help='对手类型：random(随机), passive(被动), aggressive(激进), tight(紧凶)，默认random')
     parser.add_argument('--seed', type=int, default=42, help='随机种子（默认42，用于重现结果。注意：多线程时结果可能略有不同，使用--threads 1确保完全可重现）')
     parser.add_argument('--verbose', action='store_true', help='详细输出模式')
     args = parser.parse_args()
 
-    run_test(num_hands=args.hands, num_threads=args.threads, verbose=args.verbose, seed=args.seed)
+    run_test(num_hands=args.hands, num_threads=args.threads, verbose=args.verbose,
+            seed=args.seed, opponent_type=args.opponent)
     print('测试完成！')

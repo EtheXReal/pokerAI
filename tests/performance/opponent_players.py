@@ -44,25 +44,14 @@ class OpponentPlayer(ABC):
 class RandomPlayer(OpponentPlayer):
     """随机决策玩家"""
 
-    def __init__(self, name: str = "Random",
-                 fold_rate: float = 0.4,
-                 raise_rate: float = 0.2):
-        """
-        Args:
-            name: 玩家名称
-            fold_rate: 面对下注时fold的概率（0-1）
-            raise_rate: 面对下注时raise的概率，剩余为call
-                       未面对下注时bet的概率，剩余为check
-        """
+    def __init__(self, name: str = "Random"):
         super().__init__(name)
-        self.fold_rate = fold_rate
-        self.raise_rate = raise_rate
 
     def decide(self, pot: float, facing_bet: float, stack: float) -> Tuple[str, float]:
         """
-        随机决策
-        - 未面对下注: raise_rate% bet, (1-raise_rate)% check
-        - 面对下注: fold_rate% fold, raise_rate% raise, 剩余% call
+        随机决策 - 所有street一致
+        - 不facing bet: 1/3 bet, 2/3 check
+        - facing bet: 1/5 raise, 2/5 call, 2/5 fold （更合理的分布）
 
         Returns:
             (action, amount)
@@ -70,19 +59,20 @@ class RandomPlayer(OpponentPlayer):
         r = random.random()
 
         if facing_bet > 0:
-            # 面对下注
-            if r < self.fold_rate:
-                return 'fold', 0.0
-            elif r < self.fold_rate + self.raise_rate:
+            # 面对下注: 1/5 raise, 2/5 call, 2/5 fold
+            if r < 0.2:
                 # Raise: 随机尺度 2.0-3.5x
                 raise_size = facing_bet * random.uniform(2.0, 3.5)
                 return 'raise', min(raise_size, stack)
-            else:
-                # Call
+            elif r < 0.6:
+                # Call: 跟注
                 return 'call', 0.0
+            else:
+                # Fold
+                return 'fold', 0.0
         else:
-            # 未面对下注
-            if r < self.raise_rate:
+            # 未面对下注: 1/3 bet, 2/3 check
+            if r < 1.0 / 3.0:
                 # Bet: 随机尺度 0.33-1.0 pot
                 bet_size = pot * random.uniform(0.33, 1.0)
                 return 'bet', min(bet_size, stack)

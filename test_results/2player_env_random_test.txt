@@ -2,20 +2,20 @@
 2人对局测试 - poker_env + RandomPlayer (16手)
 ================================================================================
 
-测试时间: 2025-11-13 13:46:54
+测试时间: 2025-11-13 13:51:29
 随机种子: 42
-总用时: 0.9秒
+总用时: 0.8秒
 
 ================================================================================
 📊 结果汇总
 ================================================================================
 
 总手数: 16
-AI总盈亏: +129.16 BB
-AI BB/100: +807.22 BB/100手
+AI总盈亏: +129.72 BB
+AI BB/100: +810.72 BB/100手
 
-BTN位置: +77.20 BB, BB/100: +964.96
-BB位置: +51.96 BB, BB/100: +649.48
+BTN位置: +163.86 BB, BB/100: +2048.22
+BB位置: -34.14 BB, BB/100: -426.78
 
 ================================================================================
 📋 详细记录
@@ -47,11 +47,10 @@ Actions:
   [preflop] AI: raise to 17.0BB (pot=21.2BB)
   [preflop] Random: call 12.9BB (pot=34.0BB)
   [flop] Random: bet 20.9BB (pot=54.9BB)
-  [flop] AI: check (pot=54.9BB)
-  [flop] Random: fold (pot=54.9BB)
+  [flop] AI: fold (pot=54.9BB)
 
-Winner: AI, Pot: 54.9BB
-AI profit: +37.93BB
+Winner: Random, Pot: 54.9BB
+AI profit: -17.02BB
 
 --------------------------------------------------------------------------------
 
@@ -91,21 +90,10 @@ Actions:
   [flop] AI: check (pot=2.0BB)
   [turn] AI: bet 1.3BB (pot=3.3BB)
   [turn] Random: raise to 5.9BB (pot=9.2BB)
-  [turn] AI: check (pot=9.2BB)
-  [turn] Random: call 0.0BB (pot=9.2BB)
-  [turn] AI: check (pot=9.2BB)
-  [turn] Random: bet 17.1BB (pot=26.3BB)
-  [turn] AI: check (pot=26.3BB)
-  [turn] Random: call 0.0BB (pot=26.3BB)
-  [turn] AI: check (pot=26.3BB)
-  [turn] Random: bet 65.0BB (pot=91.3BB)
-  [turn] AI: raise to 99.0BB (all-in) (pot=189.0BB)
+  [turn] AI: fold (pot=9.2BB)
 
-Winner: AI, Random, Pot: 189.0BB
-AI profit: -88.98BB
-Showdown:
-  AI: ONE_PAIR
-  Random: TWO_PAIR
+Winner: Random, Pot: 9.2BB
+AI profit: -2.32BB
 
 --------------------------------------------------------------------------------
 
@@ -235,14 +223,10 @@ Actions:
   [preflop] AI: raise to 15.6BB (pot=19.3BB)
   [preflop] Random: call 11.8BB (pot=31.2BB)
   [flop] Random: bet 26.6BB (pot=57.7BB)
-  [flop] AI: check (pot=57.7BB)
-  [flop] Random: bet 57.9BB (all-in) (pot=115.6BB)
+  [flop] AI: fold (pot=57.7BB)
 
-Winner: AI, Random, Pot: 115.6BB
-AI profit: +15.58BB
-Showdown:
-  AI: TWO_PAIR
-  Random: ONE_PAIR
+Winner: Random, Pot: 57.7BB
+AI profit: -15.58BB
 
 --------------------------------------------------------------------------------
 

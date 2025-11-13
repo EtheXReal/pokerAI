@@ -198,11 +198,29 @@ class BettingRound:
                     return active_players[0].name, pot
 
             elif action_type == 'check':
-                actions.append(ActionRecord(
-                    street.value, current_player.name, current_seat, 'check', 0, pot
-                ))
-                if self.verbose:
-                    print(f"  {current_player.name} checks")
+                # 验证：facing bet时不能check
+                if to_call > 0.01:
+                    # 非法check，强制fold
+                    if self.verbose:
+                        print(f"  [Invalid check facing bet {to_call:.1f}BB, folding instead]")
+                    current_player.is_active = False
+                    actions.append(ActionRecord(
+                        street.value, current_player.name, current_seat, 'fold', 0, pot
+                    ))
+                    if self.verbose:
+                        print(f"  {current_player.name} folds")
+
+                    # 检查是否只剩一个玩家
+                    active_players = [p for p in players if p.is_active]
+                    if len(active_players) == 1:
+                        return active_players[0].name, pot
+                else:
+                    # 没有facing bet，合法check
+                    actions.append(ActionRecord(
+                        street.value, current_player.name, current_seat, 'check', 0, pot
+                    ))
+                    if self.verbose:
+                        print(f"  {current_player.name} checks")
 
             elif action_type == 'call':
                 call_amount = min(to_call, current_player.stack)

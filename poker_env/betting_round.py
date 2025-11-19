@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 from .player import Player, PlayerAction, GameState
-from .utils import (Street, get_action_order, get_position_name, round_amount,
+from .utils import (Street, get_action_order, get_position_name, round_amount, round_bet_amount,
                     ALLIN_THRESHOLD, FLOAT_TOLERANCE, MIN_BET_UNIT, ZERO_THRESHOLD, BIG_BLIND)
 from advisor.range_engine import Board
 
@@ -256,7 +256,9 @@ class BettingRound:
                 # 但需要继续检查其他玩家
 
             elif action_type == 'bet':
-                bet_amount = min(amount, current_player.stack)
+                # 规范化到0.5BB的整数倍
+                normalized_amount = round_bet_amount(amount)
+                bet_amount = min(normalized_amount, current_player.stack)
                 # 验证：主动bet最小1BB（不包括all-in）
                 if bet_amount < MIN_BET_UNIT and current_player.stack > MIN_BET_UNIT:
                     # Bet太小，改为check
@@ -317,8 +319,9 @@ class BettingRound:
                         if self.verbose:
                             print(f"  {current_player.name} folds")
                 else:
-                    # 正常raise
-                    raise_amt = min(amount, current_player.stack - call_amt)
+                    # 正常raise - 规范化到0.5BB的整数倍
+                    normalized_amount = round_bet_amount(amount)
+                    raise_amt = min(normalized_amount, current_player.stack - call_amt)
                     raise_to = facing_bet + raise_amt
                     total_invest = call_amt + raise_amt
 

@@ -57,24 +57,25 @@ def round_amount(amount: float) -> float:
 
 def round_bet_amount(amount: float) -> float:
     """
-    将bet/raise金额规范化到0.5BB的整数倍
+    将bet/raise金额规范化到整数BB
+
+    主动bet/raise不允许有小数部分（包括0.5），只允许整数BB
 
     Args:
         amount: 原始金额
 
     Returns:
-        四舍五入到最近的0.5BB
+        四舍五入到最近的整数BB
 
     Examples:
-        1.32BB -> 1.5BB
+        1.32BB -> 1.0BB
         1.87BB -> 2.0BB
-        9.35BB -> 9.5BB
+        9.35BB -> 9.0BB
+        23.50BB -> 24.0BB
         2.24BB -> 2.0BB
     """
-    # 四舍五入到最近的0.5BB
-    # 使用 math.floor(x + 0.5) 避免Python的banker's rounding
-    import math
-    return math.floor(amount * 2 + 0.5) / 2
+    # 四舍五入到整数BB
+    return round(amount)
 
 
 def is_close(a: float, b: float, tolerance: float = FLOAT_TOLERANCE) -> bool:

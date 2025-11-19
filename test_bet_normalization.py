@@ -65,8 +65,8 @@ def test_bet_normalization():
         print(f"  实际执行: {bet_action.action}")
         print(f"  实际金额: {bet_action.amount:.2f}BB")
 
-        # 应该是1.5BB（1.32四舍五入到最近的0.5BB）
-        expected = 1.5
+        # 应该是1.0BB（1.32四舍五入到最近的整数BB）
+        expected = 1.0
         if abs(bet_action.amount - expected) < 0.01:
             print(f"  ✅ 金额正确规范化为 {expected:.1f}BB")
         else:
@@ -105,7 +105,7 @@ def test_bet_normalization_2():
         print(f"  实际执行: {bet_action.action}")
         print(f"  实际金额: {bet_action.amount:.2f}BB")
 
-        expected = 9.5
+        expected = 9.0
         if abs(bet_action.amount - expected) < 0.01:
             print(f"  ✅ 金额正确规范化为 {expected:.1f}BB")
         else:
@@ -150,12 +150,12 @@ def test_raise_normalization():
                 raise_to_amount = float(parts[2].replace('BB', ''))
                 print(f"  Raise to: {raise_to_amount:.2f}BB")
 
-                # 检查是否是0.5BB的整数倍
-                remainder = (raise_to_amount * 2) % 1
+                # 检查是否是整数BB
+                remainder = raise_to_amount % 1
                 if remainder < 0.01:
-                    print(f"  ✅ 金额是0.5BB的整数倍")
+                    print(f"  ✅ 金额是整数BB")
                 else:
-                    print(f"  ❌ 金额不是0.5BB的整数倍")
+                    print(f"  ❌ 金额不是整数BB（有小数：{remainder:.2f}）")
     else:
         print("  ❌ 未找到raise动作")
 
@@ -169,18 +169,19 @@ def test_utils_round_function():
     from poker_env.utils import round_bet_amount
 
     test_cases = [
-        (1.32, 1.5),
+        (1.32, 1.0),
         (1.87, 2.0),
-        (9.35, 9.5),
+        (9.35, 9.0),
         (2.24, 2.0),
         (19.97, 20.0),
         (32.88, 33.0),
-        (0.5, 0.5),
+        (23.50, 24.0),  # 不允许0.5
+        (0.5, 0.0),     # 四舍五入到0 (banker's rounding)
         (1.0, 1.0),
-        (1.25, 1.5),
-        (1.74, 1.5),  # 1.74 is closer to 1.5 (distance 0.24) than 2.0 (distance 0.26)
-        (1.75, 2.0),  # Midpoint rounds up
-        (2.26, 2.5),
+        (1.49, 1.0),
+        (1.50, 2.0),
+        (1.74, 2.0),
+        (2.26, 2.0),
     ]
 
     all_passed = True

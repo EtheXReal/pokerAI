@@ -7,6 +7,7 @@ AI决策溯源工具
 - 每个步骤的执行时间
 - 完整的决策链条可视化
 """
+import os
 import time
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
@@ -163,6 +164,112 @@ class DecisionTraceLog:
 
         lines.append("\n" + "=" * 100)
         return "\n".join(lines)
+
+    def save_to_file(self, output_dir: str = "test_results/decision_traces", verbose: bool = True) -> str:
+        """
+        保存追踪日志到文件
+
+        Args:
+            output_dir: 输出目录
+            verbose: 是否使用详细格式
+
+        Returns:
+            保存的文件路径
+        """
+        # 创建输出目录
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 生成文件名
+        filename = f"hand_{self.hand_num:03d}_{self.street}.txt"
+        filepath = os.path.join(output_dir, filename)
+
+        # 写入文件
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(self.format_full(verbose=verbose))
+
+        return filepath
+
+    def export_to_graphviz(self, output_dir: str = "test_results/decision_traces") -> str:
+        """
+        导出为 Graphviz DOT 格式
+
+        Args:
+            output_dir: 输出目录
+
+        Returns:
+            保存的 DOT 文件路径
+        """
+        # 创建输出目录
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 生成 DOT 内容
+        lines = ['digraph DecisionTree {']
+        lines.append('  rankdir=TB;')
+        lines.append('  node [shape=box, style="rounded,filled", fontname="Arial"];')
+        lines.append('  edge [fontname="Arial"];')
+        lines.append('')
+
+        # 标题节点
+        lines.append('  title [label="AI决策溯源\\nHand #' + str(self.hand_num) + ' - ' + self.street +
+                    '\\n手牌: ' + self.hero_hand + '\\n公共牌: ' + self.board +
+                    '", shape=box, fillcolor=lightblue];')
+        lines.append('')
+
+        # 添加所有步骤节点
+        for i, step in enumerate(self.steps):
+            node_id = f"step_{i}"
+
+            # 节点标签
+            label = f"{step.step_name}\\n{step.duration_ms:.2f}ms"
+
+            # 添加关键输出到标签
+            if step.outputs:
+                label += "\\n---"
+                for key, value in list(step.outputs.items())[:2]:  # 只显示前2个输出
+                    value_str = str(value)
+                    if len(value_str) > 20:
+                        value_str = value_str[:17] + "..."
+                    label += f"\\n{key}: {value_str}"
+
+            # 根据耗时设置颜色
+            if step.duration_ms > 30:
+                fillcolor = "lightcoral"  # 慢步骤：红色
+            elif step.duration_ms > 5:
+                fillcolor = "lightyellow"  # 中等：黄色
+            else:
+                fillcolor = "lightgreen"  # 快步骤：绿色
+
+            lines.append(f'  {node_id} [label="{label}", fillcolor={fillcolor}];')
+
+        lines.append('')
+
+        # 添加边（title -> step_0 -> step_1 -> ...）
+        lines.append('  title -> step_0;')
+        for i in range(len(self.steps) - 1):
+            prev_node = f"step_{i}"
+            next_node = f"step_{i+1}"
+            lines.append(f'  {prev_node} -> {next_node};')
+
+        # 最终决策节点
+        lines.append('')
+        final_label = f"最终决策\\n{self.final_action}"
+        if self.final_amount > 0:
+            final_label += f"\\n{self.final_amount:.1f}BB"
+        lines.append(f'  final [label="{final_label}", shape=ellipse, fillcolor=lightblue, style=filled];')
+
+        if len(self.steps) > 0:
+            lines.append(f'  step_{len(self.steps) - 1} -> final;')
+
+        lines.append('}')
+
+        # 保存 DOT 文件
+        dot_filename = f"hand_{self.hand_num:03d}_{self.street}.dot"
+        dot_filepath = os.path.join(output_dir, dot_filename)
+
+        with open(dot_filepath, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+
+        return dot_filepath
 
 
 class DecisionTracer:

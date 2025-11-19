@@ -173,6 +173,21 @@ class AdvisorV2Player(Player):
             if self.tracer.is_enabled() and trace_log:
                 print("\n" + trace_log.format_full(verbose=True))
 
+                # 保存追踪日志到文件
+                try:
+                    txt_path = trace_log.save_to_file()
+                    print(f"\n💾 追踪日志已保存: {txt_path}")
+                except Exception as e:
+                    print(f"\n⚠️  保存追踪日志失败: {e}")
+
+                # 导出 Graphviz
+                try:
+                    dot_path = trace_log.export_to_graphviz()
+                    print(f"📊 Graphviz已导出: {dot_path}")
+                    print(f"   生成图片: dot -Tpng {dot_path} -o {dot_path.replace('.dot', '.png')}")
+                except Exception as e:
+                    print(f"⚠️  导出Graphviz失败: {e}")
+
             return final_action
 
         except Exception as e:

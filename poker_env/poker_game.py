@@ -12,7 +12,7 @@ from advisor.range_engine.evaluator import HandEvaluator
 
 from .player import Player
 from .betting_round import BettingRound, ActionRecord
-from .utils import Street, get_blind_amounts, get_position_name
+from .utils import Street, get_blind_amounts, get_position_name, ZERO_THRESHOLD
 from .side_pot import SidePotManager
 
 
@@ -279,7 +279,7 @@ class PokerGame:
         )
 
         # 找到获胜者（赢得任何金额的玩家）
-        winner_seats = [i for i, w in enumerate(player_winnings) if w > 0.01]
+        winner_seats = [i for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]
 
         # 计算每个玩家的盈亏
         player_profits = []

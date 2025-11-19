@@ -8,11 +8,33 @@ from typing import List
 # ============================================================================
 # 精度控制常量
 # ============================================================================
-# 德州扑克标准精度：0.01BB（小数点后2位）
-# 这与线上扑克的筹码最小单位一致
+"""
+德州扑克金额规则：
+- 小盲注：0.5BB（强制盲注）
+- 大盲注：1BB（强制盲注）
+- Call：可以是任意金额（被动跟注）
+- 主动下注/加注最小单位：1BB
+- 所有金额保留2位小数
+"""
+
+# 浮点数比较容差（用于处理浮点精度误差）
+FLOAT_TOLERANCE = 0.01
+
+# 盲注金额
+SMALL_BLIND = 0.5  # 小盲（0.5BB）
+BIG_BLIND = 1.0    # 大盲（1BB）
+
+# 主动下注最小单位（仅用于 bet/raise 验证）
+MIN_BET_UNIT = BIG_BLIND  # 1BB
+
+# All-in阈值（剩余筹码小于此值视为all-in）
+ALLIN_THRESHOLD = SMALL_BLIND  # 0.5BB
+
+# 小数精度（保留2位小数）
 PRECISION = 2  # 小数点位数
-EPSILON = 0.01  # 最小单位（0.01BB）
-ALLIN_THRESHOLD = 0.01  # All-in阈值
+
+# 判断金额是否"接近0"（用于各种 amount > 0 的判断）
+ZERO_THRESHOLD = FLOAT_TOLERANCE  # 0.01BB
 
 
 def round_amount(amount: float) -> float:
@@ -24,23 +46,32 @@ def round_amount(amount: float) -> float:
 
     Returns:
         四舍五入到0.01BB精度的金额
+
+    Note:
+        虽然主动下注最小单位是1BB，但保留2位小数以支持：
+        - 小盲注：0.5BB
+        - 筹码计算中间值
     """
     return round(amount, PRECISION)
 
 
-def is_close(a: float, b: float, epsilon: float = EPSILON) -> bool:
+def is_close(a: float, b: float, tolerance: float = FLOAT_TOLERANCE) -> bool:
     """
     浮点数比较（考虑精度误差）
 
     Args:
         a: 第一个数
         b: 第二个数
-        epsilon: 误差阈值
+        tolerance: 误差阈值
 
     Returns:
         是否在误差范围内相等
     """
-    return abs(a - b) < epsilon
+    return abs(a - b) < tolerance
+
+
+# 向后兼容（标记为deprecated）
+EPSILON = FLOAT_TOLERANCE  # DEPRECATED: 使用 FLOAT_TOLERANCE 或 ZERO_THRESHOLD
 
 
 class Street(Enum):

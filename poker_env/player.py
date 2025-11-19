@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional
 from advisor.range_engine import Hand, Board
-from .utils import ALLIN_THRESHOLD, round_amount
+from .utils import ALLIN_THRESHOLD, round_amount, ZERO_THRESHOLD
 
 
 @dataclass
@@ -130,7 +130,7 @@ class SimplePlayer(Player):
     """
 
     def decide(self, game_state: GameState) -> PlayerAction:
-        if game_state.to_call <= 0.01:
+        if game_state.to_call <= ZERO_THRESHOLD:
             return PlayerAction('check', 0.0)
         else:
             return PlayerAction('fold', 0.0)

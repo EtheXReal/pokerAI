@@ -7,7 +7,8 @@ from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 from .player import Player, PlayerAction, GameState
-from .utils import Street, get_action_order, get_position_name, round_amount, ALLIN_THRESHOLD, EPSILON
+from .utils import (Street, get_action_order, get_position_name, round_amount,
+                    ALLIN_THRESHOLD, FLOAT_TOLERANCE, MIN_BET_UNIT, ZERO_THRESHOLD, BIG_BLIND)
 from advisor.range_engine import Board
 
 
@@ -78,7 +79,7 @@ class BettingRound:
                           f"street_invested={p.street_invested:.2f}BB, allin={p.is_allin}")
 
         # 行动循环变量
-        last_raise_increment = 1.0  # 初始最小加注增量为1BB
+        last_raise_increment = BIG_BLIND  # 初始最小加注增量为1BB
         num_actions = 0
         max_actions = 50  # 防止无限循环
         current_player_idx = 0
@@ -119,7 +120,7 @@ class BettingRound:
 
             # 检查是否可以结束betting round
             # 条件：所有active玩家的街道投入相等，且至少有一个玩家行动过
-            if num_actions > 1 and to_call <= EPSILON:
+            if num_actions > 1 and to_call <= ZERO_THRESHOLD:
                 # 检查是否所有active玩家投入相等
                 active_invested = [p.street_invested for p in players if p.is_active]
                 if len(set(active_invested)) == 1:
@@ -160,7 +161,7 @@ class BettingRound:
                 if self.verbose:
                     print(f"  [Error in {current_player.name} decision: {e}]")
                 # 出错时默认fold或check
-                if to_call > EPSILON:
+                if to_call > ZERO_THRESHOLD:
                     player_action = PlayerAction('fold', 0.0)
                 else:
                     player_action = PlayerAction('check', 0.0)
@@ -172,12 +173,12 @@ class BettingRound:
                 print(f"  [DEBUG] Decision: {action_type}, amount: {amount:.2f}BB")
 
             # Action规范化
-            if to_call > EPSILON and action_type == 'bet':
+            if to_call > ZERO_THRESHOLD and action_type == 'bet':
                 action_type = 'raise'
                 if self.verbose:
                     print(f"  [Normalized: bet -> raise]")
 
-            if to_call <= EPSILON and action_type == 'raise':
+            if to_call <= ZERO_THRESHOLD and action_type == 'raise':
                 action_type = 'bet'
                 if self.verbose:
                     print(f"  [Normalized: raise -> bet]")
@@ -198,7 +199,7 @@ class BettingRound:
 
             elif action_type == 'check':
                 # 验证：facing bet时不能check
-                if to_call > EPSILON:
+                if to_call > ZERO_THRESHOLD:
                     # 非法check，强制fold
                     if self.verbose:
                         print(f"  [Invalid check facing bet {to_call:.2f}BB, folding instead]")
@@ -227,7 +228,7 @@ class BettingRound:
                 pot += actual_invested
 
                 # 如果是all-in call且未完全call对手的bet
-                if current_player.is_allin and call_amount < to_call - EPSILON:
+                if current_player.is_allin and call_amount < to_call - FLOAT_TOLERANCE:
                     uncalled_bet = to_call - call_amount
                     if self.verbose:
                         print(f"  [All-in call: returning {uncalled_bet:.2f}BB uncalled bet]")
@@ -256,10 +257,11 @@ class BettingRound:
 
             elif action_type == 'bet':
                 bet_amount = min(amount, current_player.stack)
-                if bet_amount < 0.5 and current_player.stack > 0.5:
+                # 验证：主动bet最小1BB（不包括all-in）
+                if bet_amount < MIN_BET_UNIT and current_player.stack > MIN_BET_UNIT:
                     # Bet太小，改为check
                     if self.verbose:
-                        print(f"  [Bet too small, checking instead]")
+                        print(f"  [Bet too small (<{MIN_BET_UNIT:.1f}BB), checking instead]")
                     actions.append(ActionRecord(
                         street.value, current_player.name, current_seat, 'check', 0, pot
                     ))
@@ -293,7 +295,7 @@ class BettingRound:
 
                         # 退回uncalled bet
                         uncalled_bet = call_amt - actual_invested
-                        if uncalled_bet > EPSILON:
+                        if uncalled_bet > FLOAT_TOLERANCE:
                             for p in players:
                                 if p.is_active and p.street_invested == facing_bet:
                                     p.return_chips(uncalled_bet)
@@ -321,7 +323,7 @@ class BettingRound:
                     total_invest = call_amt + raise_amt
 
                     # 检查最小加注
-                    if raise_to < min_raise_to - EPSILON:
+                    if raise_to < min_raise_to - FLOAT_TOLERANCE:
                         # 不满足最小加注
                         if current_player.stack - total_invest <= ALLIN_THRESHOLD:
                             # All-in但不足最小加注，允许（德州扑克规则）

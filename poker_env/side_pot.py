@@ -9,6 +9,8 @@ from typing import List, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from .player import Player
 
+from .utils import ZERO_THRESHOLD, FLOAT_TOLERANCE, SMALL_BLIND
+
 
 @dataclass
 class SidePot:
@@ -66,7 +68,7 @@ class SidePotManager:
         # 包括fold的玩家（他们的投入也要算在pot中）
         invested_players = []
         for p in players:
-            if p.invested > 0.01:  # 有投入的玩家
+            if p.invested > ZERO_THRESHOLD:  # 有投入的玩家
                 invested_players.append((p.seat, p.invested, p.is_active))
 
         if not invested_players:
@@ -86,7 +88,7 @@ class SidePotManager:
 
         # 逐级创建边池
         for i, (seat, invested, is_active) in enumerate(invested_players):
-            if invested > prev_level + 0.01:  # 有新的投入级别
+            if invested > prev_level + FLOAT_TOLERANCE:  # 有新的投入级别
                 # 计算这一级的边池金额
                 level_amount = invested - prev_level
 
@@ -193,7 +195,7 @@ class SidePotManager:
         total_side_pots = sum(sp.amount for sp in side_pots)
 
         # 允许小数误差
-        if abs(total_invested - total_side_pots) > 0.1:
+        if abs(total_invested - total_side_pots) > SMALL_BLIND:
             print(f"[SidePot] ERROR: Total invested ({total_invested:.1f}BB) != "
                   f"Total side pots ({total_side_pots:.1f}BB)")
             return False

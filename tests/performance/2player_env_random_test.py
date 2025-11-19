@@ -32,23 +32,30 @@ from tests.performance.opponent_players import OpponentPlayer, create_opponent
 class AdvisorV2Player(Player):
     """Advisor V2 AI玩家（适配poker_env接口）"""
 
-    def __init__(self, name: str, seat: int, stack: float):
+    def __init__(self, name: str, seat: int, stack: float, enable_trace: bool = False):
         super().__init__(name, seat, stack)
         # 初始化advisor_v2组件
         self.range_engine = RangeEngine()
         self.equity_engine = EquityEngine()
         self.board_analyzer = BoardAnalyzer()
         self.gto_strategy = GTOStrategy()
+
+        # 决策追踪器
+        from advisor_v2.debug.decision_tracer import DecisionTracer
+        self.tracer = DecisionTracer(enabled=enable_trace)
+        self.hand_num = 0
+
         self.integrator = DecisionIntegrator(
             range_engine=self.range_engine,
             equity_engine=self.equity_engine,
             board_analyzer=self.board_analyzer,
-            strategy=self.gto_strategy
+            strategy=self.gto_strategy,
+            tracer=self.tracer
         )
 
     def decide(self, game_state: GameState) -> PlayerAction:
         """
-        使用DecisionIntegrator做决策
+        使用DecisionIntegrator做决策（带追踪）
 
         Args:
             game_state: poker_env的GameState
@@ -58,6 +65,7 @@ class AdvisorV2Player(Player):
         """
         try:
             # 转换为advisor的GameState
+            step_start = time.time()
             advisor_game_state = AdvisorGameState(
                 street=game_state.street,
                 position=game_state.position,
@@ -71,8 +79,24 @@ class AdvisorV2Player(Player):
                 bet_to_call=game_state.to_call,
                 opponent_type=PlayerType.UNKNOWN
             )
+            step_time = (time.time() - step_start) * 1000
 
-            # 使用DecisionIntegrator决策
+            # 开始追踪
+            trace_log = self.tracer.start_trace(self.hand_num, advisor_game_state)
+
+            # Trace: GameState转换
+            if self.tracer.is_enabled():
+                self.tracer.trace_step(
+                    step_name="GameState转换",
+                    module="tests/performance/2player_env_random_test.py",
+                    function="AdvisorV2Player.decide",
+                    inputs={"poker_env_state": f"street={game_state.street}, pot={game_state.pot:.1f}BB"},
+                    outputs={"advisor_state": f"street={advisor_game_state.street}, pot={advisor_game_state.pot_size:.1f}BB"},
+                    duration_ms=step_time,
+                    reasoning="将poker_env的GameState转换为advisor格式"
+                )
+
+            # 使用DecisionIntegrator决策（内部会自动追踪）
             trace = self.integrator.decide(advisor_game_state)
             selected_action = self.integrator.select_action(trace.gto_decision)
 
@@ -81,6 +105,9 @@ class AdvisorV2Player(Player):
 
             # 转换amount
             if action_type in ['bet', 'raise']:
+                # Trace: 金额计算
+                step_start = time.time()
+
                 if amount > 0:
                     actual_amount = round_amount(game_state.pot * amount)
                 else:
@@ -105,9 +132,48 @@ class AdvisorV2Player(Player):
 
                 actual_amount = round_amount(actual_amount)
 
-                return PlayerAction(action_type, actual_amount)
+                step_time = (time.time() - step_start) * 1000
+
+                if self.tracer.is_enabled():
+                    self.tracer.trace_step(
+                        step_name="金额计算",
+                        module="tests/performance/2player_env_random_test.py",
+                        function="AdvisorV2Player.decide",
+                        inputs={
+                            "pot_multiplier": amount,
+                            "pot": game_state.pot,
+                            "hero_stack": game_state.hero_stack
+                        },
+                        outputs={"actual_amount": actual_amount},
+                        duration_ms=step_time,
+                        reasoning=f"将pot的{amount:.1%}转换为实际金额{actual_amount:.1f}BB，并限制在合法范围"
+                    )
+
+                final_action = PlayerAction(action_type, actual_amount)
             else:
-                return PlayerAction(action_type, 0.0)
+                step_start = time.time()
+                step_time = (time.time() - step_start) * 1000
+
+                if self.tracer.is_enabled():
+                    self.tracer.trace_step(
+                        step_name="非下注动作",
+                        module="tests/performance/2player_env_random_test.py",
+                        function="AdvisorV2Player.decide",
+                        inputs={"action": action_type},
+                        outputs={"amount": 0.0},
+                        duration_ms=step_time,
+                        reasoning=f"{action_type}动作不需要金额"
+                    )
+                final_action = PlayerAction(action_type, 0.0)
+
+            # 完成追踪
+            self.tracer.finish_trace(final_action.action, final_action.amount)
+
+            # 输出追踪日志
+            if self.tracer.is_enabled() and trace_log:
+                print("\n" + trace_log.format_full(verbose=True))
+
+            return final_action
 
         except Exception as e:
             print(f"  [AI决策错误: {e}]")
@@ -152,7 +218,7 @@ class RandomOpponentPlayer(Player):
         return PlayerAction(action_type, amount)
 
 
-def run_test(num_hands: int = 16, verbose: bool = True, debug: bool = False, seed: int = 42):
+def run_test(num_hands: int = 16, verbose: bool = True, debug: bool = False, trace: bool = False, seed: int = 42):
     """运行2人RandomPlayer测试"""
     print('=' * 80)
     print('🎮 2人对局测试 - poker_env + RandomPlayer')
@@ -163,10 +229,11 @@ def run_test(num_hands: int = 16, verbose: bool = True, debug: bool = False, see
     print(f'  对手类型: RandomPlayer (fold=0.4, raise_facing=0.2, bet=0.33)')
     print(f'  Verbose: {verbose}')
     print(f'  Debug: {debug}')
+    print(f'  AI决策追踪: {trace}')
     print(f'  开始时间: {time.strftime("%Y-%m-%d %H:%M:%S")}')
 
-    # 创建玩家
-    ai = AdvisorV2Player("AI", seat=0, stack=100.0)
+    # 创建玩家（启用追踪）
+    ai = AdvisorV2Player("AI", seat=0, stack=100.0, enable_trace=trace)
     opponent_impl = create_opponent('random', name="Random")
     random = RandomOpponentPlayer("Random", seat=1, stack=100.0, opponent_impl=opponent_impl)
 
@@ -191,6 +258,9 @@ def run_test(num_hands: int = 16, verbose: bool = True, debug: bool = False, see
 
     results = []
     for i in range(num_hands):
+        # 设置AI的hand_num（用于追踪）
+        ai.hand_num = i
+
         # BTN轮换
         btn_seat = i % 2
 
@@ -310,7 +380,14 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42, help='随机种子')
     parser.add_argument('--verbose', action='store_true', help='详细输出')
     parser.add_argument('--debug', action='store_true', help='调试模式')
+    parser.add_argument('--trace', action='store_true', help='启用AI决策追踪')
     args = parser.parse_args()
 
-    run_test(num_hands=args.hands, verbose=args.verbose, debug=args.debug, seed=args.seed)
+    run_test(
+        num_hands=args.hands,
+        verbose=args.verbose,
+        debug=args.debug,
+        trace=args.trace,
+        seed=args.seed
+    )
     print('✅ 测试完成！')

@@ -62,6 +62,13 @@ class GTOStrategy(IStrategy):
         self.default_raise_size = 2.5  # 2.5x BB翻前
         self.default_cbet_size = 0.66  # 0.66 pot翻后
 
+        # 追踪器（可选）
+        self.tracer = None
+
+    def set_tracer(self, tracer):
+        """设置追踪器"""
+        self.tracer = tracer
+
     def decide(self, ctx: StrategyContext) -> StrategyDecision:
         """
         基于上下文做出决策
@@ -98,7 +105,20 @@ class GTOStrategy(IStrategy):
         # TODO: 在DecisionIntegrator中调用RangeEngine并将结果放入ctx
 
         hand = ctx.hero_hand
+
+        # Trace: 估算hand percentile
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_begin()
         percentile = self._estimate_hand_percentile(hand, ctx)
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_end(
+                step_name="Hand Percentile估算",
+                module="advisor_v2/strategy/gto_strategy.py",
+                function="_estimate_hand_percentile",
+                inputs={"hand": str(hand), "position": str(ctx.position)},
+                outputs={"percentile": percentile},
+                reasoning=f"{hand}在{ctx.position}的GTO range中排名{percentile:.2%}（基于牌力粗略估计）"
+            )
 
         # 2. 判断是否facing bet
         facing_bet = ctx.facing_bet
@@ -106,10 +126,34 @@ class GTOStrategy(IStrategy):
         # 3. 决策逻辑
         if not facing_bet:
             # Open或limp situation
-            return self._decide_preflop_open(ctx, percentile)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
+            decision = self._decide_preflop_open(ctx, percentile)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_end(
+                    step_name="翻前Open决策",
+                    module="advisor_v2/strategy/gto_strategy.py",
+                    function="_decide_preflop_open",
+                    inputs={"percentile": percentile, "raise_threshold": self.raise_threshold},
+                    outputs={"action_dist": decision.action_distribution, "reasoning": decision.reasoning},
+                    reasoning=f"基于percentile vs threshold做open/fold决策"
+                )
+            return decision
         else:
             # Facing raise/3bet
-            return self._decide_preflop_facing_raise(ctx, percentile)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
+            decision = self._decide_preflop_facing_raise(ctx, percentile)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_end(
+                    step_name="翻前Facing Raise决策",
+                    module="advisor_v2/strategy/gto_strategy.py",
+                    function="_decide_preflop_facing_raise",
+                    inputs={"percentile": percentile, "facing_bet": ctx.facing_bet_size},
+                    outputs={"action_dist": decision.action_distribution, "reasoning": decision.reasoning},
+                    reasoning=f"基于percentile做3bet/call/fold决策"
+                )
+            return decision
 
     def _decide_preflop_open(self, ctx: StrategyContext, percentile: float) -> StrategyDecision:
         """
@@ -237,9 +281,43 @@ class GTOStrategy(IStrategy):
 
         # 2. 判断是否facing bet
         if ctx.facing_bet:
-            return self._decide_postflop_facing_bet(ctx, equity_info, range_advantage, board_analysis)
+            # Trace: 翻后facing bet决策
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
+            decision = self._decide_postflop_facing_bet(ctx, equity_info, range_advantage, board_analysis)
+            if self.tracer and self.tracer.is_enabled():
+                pot_odds = ctx.facing_bet_size / (ctx.pot_size + ctx.facing_bet_size) if ctx.pot_size > 0 else 0
+                self.tracer.step_end(
+                    step_name="翻后Facing Bet决策",
+                    module="advisor_v2/strategy/gto_strategy.py",
+                    function="_decide_postflop_facing_bet",
+                    inputs={
+                        "equity": equity_info.point_equity,
+                        "pot_odds": pot_odds,
+                        "facing_bet": ctx.facing_bet_size
+                    },
+                    outputs={"action_dist": decision.action_distribution, "reasoning": decision.reasoning[:60] + "..."},
+                    reasoning=f"基于equity vs pot odds + range advantage做raise/call/fold决策"
+                )
+            return decision
         else:
-            return self._decide_postflop_initiative(ctx, equity_info, range_advantage, board_analysis)
+            # Trace: 翻后主动决策
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
+            decision = self._decide_postflop_initiative(ctx, equity_info, range_advantage, board_analysis)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_end(
+                    step_name="翻后Initiative决策",
+                    module="advisor_v2/strategy/gto_strategy.py",
+                    function="_decide_postflop_initiative",
+                    inputs={
+                        "equity": equity_info.point_equity,
+                        "range_advantage": range_advantage.advantage_score if range_advantage else None
+                    },
+                    outputs={"action_dist": decision.action_distribution, "reasoning": decision.reasoning[:60] + "..."},
+                    reasoning=f"基于equity + range advantage做bet/check决策（含bluff频率）"
+                )
+            return decision
 
     def _decide_postflop_facing_bet(
         self,

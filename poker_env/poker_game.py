@@ -302,26 +302,32 @@ class PokerGame:
                 print(f"    {pot_name}: {sp.amount:.1f}BB (eligible: {sp.eligible_seats})")
 
         # 根据边池分配奖金（不显示详细信息，稍后统一显示）
-        player_winnings = SidePotManager.distribute_pots(
+        pot_winnings = SidePotManager.distribute_pots(
             side_pots, self.players, hand_strengths_list, verbose=False
         )
 
-        # 添加refunds到player_winnings
+        # 显示获胜者（从边池赢得的）
+        if self.config.verbose:
+            for i, amount in enumerate(pot_winnings):
+                if amount > ZERO_THRESHOLD:
+                    print(f"  {self.players[i].name} wins {amount:.1f}BB")
+
+        # 显示退款（未被跟注的筹码）
+        if self.config.verbose and refunds:
+            for seat, refund_amount in refunds.items():
+                print(f"  {self.players[seat].name} refund {refund_amount:.1f}BB (uncalled)")
+
+        # 计算总的player_winnings（边池获胜 + 退款）
+        player_winnings = list(pot_winnings)  # 复制一份
         for seat, refund_amount in refunds.items():
             player_winnings[seat] += refund_amount
 
-        # 显示获胜者
-        if self.config.verbose:
-            winner_names = [self.players[i].name for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]
-            if len(winner_names) == 1:
-                print(f"  {winner_names[0]} wins {pot:.1f}BB")
-            else:
-                shares = {self.players[i].name: player_winnings[i] for i in range(len(self.players)) if player_winnings[i] > ZERO_THRESHOLD}
-                for name, amount in shares.items():
-                    print(f"  {name} wins {amount:.1f}BB")
-
-        # 找到获胜者（赢得任何金额的玩家）
-        winner_seats = [i for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]
+        # 找到真正的获胜者（盈利 > 0的玩家）
+        winner_seats = []
+        for i, player in enumerate(self.players):
+            profit = player_winnings[i] - player.invested
+            if profit > ZERO_THRESHOLD:
+                winner_seats.append(i)
 
         # 计算每个玩家的盈亏
         player_profits = []

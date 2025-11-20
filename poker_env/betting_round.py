@@ -121,15 +121,6 @@ class BettingRound:
             facing_bet = max_street_invested
             to_call = max(0, facing_bet - current_player.street_invested)
 
-            # 检查是否可以结束betting round
-            # 条件：所有active玩家的街道投入相等，且至少有一个玩家行动过
-            if num_actions > 1 and to_call <= ZERO_THRESHOLD:
-                # 检查是否所有active玩家投入相等
-                active_invested = [p.street_invested for p in players if p.is_active]
-                if len(set(active_invested)) == 1:
-                    # 所有人投入相等，结束
-                    return None, pot
-
             # 计算game state
             position_name = get_position_name(current_seat, btn_seat, num_players)
             effective_stack = min(p.stack for p in players if p.is_active)

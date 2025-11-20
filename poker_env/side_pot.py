@@ -107,21 +107,37 @@ class SidePotManager:
                     if is_active_j:  # 只有active玩家才能赢
                         eligible_seats.append(seat_j)
 
-                # 检查：如果只有1个玩家eligible，这部分应该直接退还，不建边池
+                # 检查：如果只有1个玩家eligible
                 if len(eligible_seats) < 2:
-                    # 只有1个或0个玩家有资格，这部分是uncalled bet，应该退还
                     if len(eligible_seats) == 1:
-                        refund_amount = level_amount
                         refund_seat = eligible_seats[0]
-                        refunds[refund_seat] = refunds.get(refund_seat, 0.0) + refund_amount
-                        if verbose:
-                            refund_player_name = None
-                            for p in players:
-                                if p.seat == refund_seat:
-                                    refund_player_name = p.name
-                                    break
-                            print(f"  [SidePot] Refunding {refund_amount:.1f}BB uncalled bet to {refund_player_name} (seat {refund_seat})")
-                    # 不创建边池，继续下一级
+
+                        # 关键修复：如果有多个contributors（包括fold的玩家），仍然要建边池
+                        # 只有当该玩家是唯一contributor时，才是真正的uncalled bet需要退款
+                        if num_contributors > 1:
+                            # 有其他玩家（虽然fold了）也贡献了筹码，建边池
+                            pot_amount = level_amount * num_contributors
+                            side_pot = SidePot(
+                                amount=pot_amount,
+                                eligible_seats=eligible_seats,
+                                cap_per_player=invested
+                            )
+                            side_pots.append(side_pot)
+                            if verbose:
+                                pot_type = "Main Pot" if len(side_pots) == 1 else f"Side Pot {len(side_pots)-1}"
+                                print(f"  [SidePot] {pot_type}: {pot_amount:.1f}BB, eligible={eligible_seats}, cap={invested:.1f}BB (single eligible, but has folded contributors)")
+                        else:
+                            # 只有这个玩家在这一级，是真正的uncalled bet
+                            refund_amount = level_amount
+                            refunds[refund_seat] = refunds.get(refund_seat, 0.0) + refund_amount
+                            if verbose:
+                                refund_player_name = None
+                                for p in players:
+                                    if p.seat == refund_seat:
+                                        refund_player_name = p.name
+                                        break
+                                print(f"  [SidePot] Refunding {refund_amount:.1f}BB uncalled bet to {refund_player_name} (seat {refund_seat})")
+                    # 继续下一级
                     prev_level = invested
                     continue
 

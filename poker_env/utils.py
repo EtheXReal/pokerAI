@@ -128,7 +128,7 @@ def get_action_order(num_players: int, btn_seat: int, street: Street) -> List[in
     - sb_pos = next_player(dealer_pos)
     - bb_pos = next_player(sb_pos)
     - preflop_first = next_player(bb_pos)  # 大盲左边第一个
-    - postflop_first = next_player(dealer_pos)  # 庄家左边第一个（SB）
+    - postflop_first = next_player(dealer_pos)  # 庄家左边第一个
 
     Args:
         num_players: 玩家数量
@@ -138,39 +138,34 @@ def get_action_order(num_players: int, btn_seat: int, street: Street) -> List[in
     Returns:
         座位索引列表，表示行动顺序
 
-    核心规则：
+    核心规则（适用于所有2-10人游戏）：
     - 翻前：从大盲左边第一个开始
     - 翻后：从庄家左边第一个开始
 
-    特殊情况：
-    - 2人游戏：BTN = SB，翻前和翻后都是 SB → BB
-    - 3人游戏：翻前从SB开始（标准3人德州扑克规则）
-    - 4人及以上：翻前从UTG（BB+1）开始
+    2人游戏：
+    - BTN = SB (庄家同时是小盲)
+    - 翻前：SB/BTN → BB
+    - 翻后：BB → SB/BTN
     """
     if num_players < 2:
         raise ValueError("At least 2 players required")
 
     dealer_pos = btn_seat
 
+    # 计算SB和BB位置（适用于所有游戏）
     if num_players == 2:
-        # 2人游戏特殊情况：BTN = SB
-        sb_pos = dealer_pos
+        sb_pos = dealer_pos  # 2人游戏：BTN = SB
         bb_pos = (dealer_pos + 1) % num_players
+    else:
+        sb_pos = (dealer_pos + 1) % num_players
+        bb_pos = (dealer_pos + 2) % num_players
 
-        # 翻前和翻后都是 SB → BB
-        return [sb_pos, bb_pos]
-
-    # 3人及以上游戏
-    sb_pos = (dealer_pos + 1) % num_players
-    bb_pos = (dealer_pos + 2) % num_players
-
+    # 统一规则：
     if street == Street.PREFLOP:
         # 翻前：从大盲左边第一个开始
-        # preflop_first = next_player(bb_pos)
         first_to_act = (bb_pos + 1) % num_players
     else:
         # 翻后：从庄家左边第一个开始
-        # postflop_first = next_player(dealer_pos) = sb_pos
         first_to_act = (dealer_pos + 1) % num_players
 
     # 生成完整的行动顺序

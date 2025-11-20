@@ -65,32 +65,57 @@ class AdvisorV2Player(Player):
 
             # 构建advisor game state
             advisor_game_state = AdvisorGameState(
-                street=street,
-                position=position,
-                hand=game_state.hand,
-                board=game_state.board,
-                pot=game_state.pot,
+                street=game_state.street,
+                position=game_state.position,
+                is_in_position=game_state.is_in_position,
+                hero_hand=game_state.hand,
+                pot_size=game_state.pot,
                 effective_stack=game_state.effective_stack,
                 hero_stack=game_state.hero_stack,
+                board=game_state.board,
                 facing_bet=game_state.facing_bet,
-                num_players=game_state.num_active_players,
-                is_in_position=game_state.is_in_position
+                bet_to_call=game_state.to_call
             )
 
             # 使用integrator做决策
-            decision = self.integrator.decide(advisor_game_state)
+            decision_trace = self.integrator.decide(advisor_game_state)
 
-            # 转换回poker_env格式
-            action_type = decision.action
+            # 从DecisionTrace中提取最终决策
+            selected_action = decision_trace.selected_action
+            if not selected_action:
+                # 如果没有selected_action，使用final_decision
+                if decision_trace.final_decision:
+                    selected_action = decision_trace.final_decision.action_dist
+                    # 从distribution中采样
+                    import random
+                    actions = list(selected_action.keys())
+                    probs = list(selected_action.values())
+                    action_type = random.choices(actions, weights=probs)[0]
 
-            # 计算实际金额
-            if action_type in ['bet', 'raise']:
-                # decision.amount是pot的倍数
-                amount = decision.amount * game_state.pot
-                # 限制在筹码范围内
-                amount = min(amount, game_state.hero_stack)
+                    # 获取sizing
+                    if action_type in ['bet', 'raise'] and decision_trace.final_decision.sizing_dist:
+                        sizings = list(decision_trace.final_decision.sizing_dist.keys())
+                        sizing_probs = list(decision_trace.final_decision.sizing_dist.values())
+                        amount_multiplier = random.choices(sizings, weights=sizing_probs)[0]
+                        amount = amount_multiplier * game_state.pot
+                    else:
+                        amount = 0.0
+                else:
+                    # 兜底：check或fold
+                    action_type = 'check' if game_state.to_call < 0.01 else 'fold'
+                    amount = 0.0
             else:
-                amount = 0.0
+                # 使用selected_action
+                action_type = selected_action.action
+                amount = selected_action.amount if hasattr(selected_action, 'amount') else 0.0
+
+                # 如果amount是pot的倍数，转换为实际金额
+                if action_type in ['bet', 'raise'] and amount > 0:
+                    amount = amount * game_state.pot
+
+            # 限制在筹码范围内
+            if amount > 0:
+                amount = min(amount, game_state.hero_stack)
 
             return PlayerAction(action_type, amount)
 
@@ -135,9 +160,27 @@ class RandomPlayer(Player):
             return PlayerAction('call', 0.0)
 
 
+class TeeOutput:
+    """同时输出到控制台和文件的类"""
+    def __init__(self):
+        self.terminal = sys.stdout
+        self.log = []
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.append(message)
+
+    def flush(self):
+        self.terminal.flush()
+
+    def get_log(self):
+        return ''.join(self.log)
+
+
 def main():
     """运行3人AI游戏测试"""
     import argparse
+    import datetime
 
     parser = argparse.ArgumentParser(description='3-player game with AI')
     parser.add_argument('--hands', type=int, default=10, help='手牌数量')
@@ -146,6 +189,11 @@ def main():
     args = parser.parse_args()
 
     random.seed(args.seed)
+
+    # 设置输出重定向
+    tee = TeeOutput()
+    old_stdout = sys.stdout
+    sys.stdout = tee
 
     print("=" * 80)
     print("3-Player Texas Hold'em - AI vs Random Players")
@@ -238,6 +286,21 @@ def main():
     else:
         print(f"✗ AI Player lost {-player_total_profits[0]:.1f}BB")
     print("=" * 80)
+
+    # 恢复stdout
+    sys.stdout = old_stdout
+
+    # 保存输出到文件
+    output_dir = "test_results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = os.path.join(output_dir, f"3player_ai_test_{timestamp}.txt")
+
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(tee.get_log())
+
+    print(f"\n✅ Output saved to: {output_file}")
 
 
 if __name__ == '__main__':

@@ -267,16 +267,38 @@ class PokerGame:
                 print(f"  {player.name}: {strength.rank.name}")
 
         # 计算边池
-        side_pots = SidePotManager.calculate_side_pots(self.players, verbose=self.config.verbose)
+        # 只有在真正有多个边池或不同投入时才显示详细信息
+        active_invested = [p.invested for p in self.players if p.is_active]
+        has_side_pots = len(set(active_invested)) > 1  # 投入金额不同
+
+        # 边池计算（不显示详细信息）
+        side_pots = SidePotManager.calculate_side_pots(self.players, verbose=False)
 
         # 验证边池（可选）
         if not SidePotManager.validate_side_pots(side_pots, self.players):
             print("[WARNING] Side pot validation failed!")
 
-        # 根据边池分配奖金
+        # 只在真正有边池时才显示详细信息
+        if self.config.verbose and has_side_pots and len(side_pots) > 1:
+            print(f"\n  [Side Pots] Multiple pots due to all-in:")
+            for i, sp in enumerate(side_pots):
+                pot_name = "Main Pot" if i == 0 else f"Side Pot {i}"
+                print(f"    {pot_name}: {sp.amount:.1f}BB (eligible: {sp.eligible_seats})")
+
+        # 根据边池分配奖金（不显示详细信息，稍后统一显示）
         player_winnings = SidePotManager.distribute_pots(
-            side_pots, self.players, hand_strengths_list, verbose=self.config.verbose
+            side_pots, self.players, hand_strengths_list, verbose=False
         )
+
+        # 显示获胜者
+        if self.config.verbose:
+            winner_names = [self.players[i].name for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]
+            if len(winner_names) == 1:
+                print(f"  {winner_names[0]} wins {pot:.1f}BB")
+            else:
+                shares = {self.players[i].name: player_winnings[i] for i in range(len(self.players)) if player_winnings[i] > ZERO_THRESHOLD}
+                for name, amount in shares.items():
+                    print(f"  {name} wins {amount:.1f}BB")
 
         # 找到获胜者（赢得任何金额的玩家）
         winner_seats = [i for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]

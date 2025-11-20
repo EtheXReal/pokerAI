@@ -287,11 +287,11 @@ class PokerGame:
         active_invested = [p.invested for p in self.players if p.is_active]
         has_side_pots = len(set(active_invested)) > 1  # 投入金额不同
 
-        # 边池计算（不显示详细信息）
-        side_pots = SidePotManager.calculate_side_pots(self.players, verbose=False)
+        # 边池计算（返回边池列表和退款字典）
+        side_pots, refunds = SidePotManager.calculate_side_pots(self.players, verbose=False)
 
         # 验证边池（可选）
-        if not SidePotManager.validate_side_pots(side_pots, self.players):
+        if not SidePotManager.validate_side_pots(side_pots, refunds, self.players):
             print("[WARNING] Side pot validation failed!")
 
         # 只在真正有边池时才显示详细信息
@@ -305,6 +305,10 @@ class PokerGame:
         player_winnings = SidePotManager.distribute_pots(
             side_pots, self.players, hand_strengths_list, verbose=False
         )
+
+        # 添加refunds到player_winnings
+        for seat, refund_amount in refunds.items():
+            player_winnings[seat] += refund_amount
 
         # 显示获胜者
         if self.config.verbose:

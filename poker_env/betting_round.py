@@ -221,18 +221,8 @@ class BettingRound:
                 actual_invested = current_player.invest(call_amount)
                 pot += actual_invested
 
-                # 如果是all-in call且未完全call对手的bet
-                if current_player.is_allin and call_amount < to_call - FLOAT_TOLERANCE:
-                    uncalled_bet = to_call - call_amount
-                    if self.verbose:
-                        print(f"  [All-in call: returning {uncalled_bet:.2f}BB uncalled bet]")
-
-                    # 找到投入最多的玩家，退回uncalled bet
-                    for p in players:
-                        if p.is_active and p.street_invested == facing_bet:
-                            p.return_chips(uncalled_bet)
-                            pot -= uncalled_bet
-                            break
+                # 注意：不在这里退回uncalled bet
+                # uncalled bet由边池系统在showdown时处理
 
                 action_str = f'call {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                 actions.append(ActionRecord(
@@ -289,14 +279,7 @@ class BettingRound:
                         actual_invested = current_player.invest(current_player.stack)
                         pot += actual_invested
 
-                        # 退回uncalled bet
-                        uncalled_bet = call_amt - actual_invested
-                        if uncalled_bet > FLOAT_TOLERANCE:
-                            for p in players:
-                                if p.is_active and p.street_invested == facing_bet:
-                                    p.return_chips(uncalled_bet)
-                                    pot -= uncalled_bet
-                                    break
+                        # 注意：不退回uncalled bet，由边池系统处理
 
                         actions.append(ActionRecord(
                             street.value, current_player.name, current_seat,

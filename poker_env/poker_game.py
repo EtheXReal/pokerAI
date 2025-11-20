@@ -82,7 +82,7 @@ class PokerGame:
             if player.seat != i:
                 raise ValueError(f"Player {player.name} seat mismatch: expected {i}, got {player.seat}")
 
-    def play_hand(self, hand_num: int, btn_seat: int, seed: Optional[int] = None) -> GameResult:
+    def play_hand(self, hand_num: int, btn_seat: int, seed: Optional[int] = None, reset_stacks: bool = True) -> GameResult:
         """
         玩一手完整的牌
 
@@ -90,6 +90,8 @@ class PokerGame:
             hand_num: 手牌编号
             btn_seat: 庄家座位索引
             seed: 随机种子（可选）
+            reset_stacks: 是否重置玩家筹码到config.starting_stack（默认True）
+                         如果为False，保持玩家当前筹码不变
 
         Returns:
             GameResult对象
@@ -98,8 +100,17 @@ class PokerGame:
             random.seed(seed)
 
         # 重置玩家状态
-        for player in self.players:
-            player.reset_for_new_hand(self.config.starting_stack)
+        if reset_stacks:
+            for player in self.players:
+                player.reset_for_new_hand(self.config.starting_stack)
+        else:
+            # 不重置筹码，但需要重置其他状态
+            for player in self.players:
+                player.is_active = True
+                player.is_allin = False
+                player.invested = 0.0
+                player.street_invested = 0.0
+                # 保持player.stack不变
 
         # 发牌
         deck = create_deck()

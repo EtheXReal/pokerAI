@@ -223,7 +223,8 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         players[1].reset_for_new_hand(initial_stacks["Random_1"])
         players[2].reset_for_new_hand(initial_stacks["Random_2"])
 
-        result = game.play_hand(hand_num, btn_seat, seed + hand_num)
+        # 使用reset_stacks=False，保持手动设置的不同筹码量
+        result = game.play_hand(hand_num, btn_seat, seed + hand_num, reset_stacks=False)
 
         # 更新统计
         for i, player in enumerate(players):

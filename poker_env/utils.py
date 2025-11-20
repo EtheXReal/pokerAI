@@ -166,31 +166,19 @@ def get_action_order(num_players: int, btn_seat: int, street: Street) -> List[in
 
     if street == Street.PREFLOP:
         # 翻前：从大盲左边第一个开始
-        if num_players == 3:
-            # 3人游戏特殊规则：SB先行动（符合标准3人德州扑克）
-            # 顺序：SB → BTN → BB
-            first_to_act = sb_pos
-        else:
-            # 4人及以上：UTG（大盲左边第一个）先行动
-            # UTG = next_player(bb_pos)
-            first_to_act = (bb_pos + 1) % num_players
-
-        # 生成完整的行动顺序
-        order = []
-        for i in range(num_players):
-            seat = (first_to_act + i) % num_players
-            order.append(seat)
-        return order
+        # preflop_first = next_player(bb_pos)
+        first_to_act = (bb_pos + 1) % num_players
     else:
-        # 翻后：从庄家左边第一个开始（SB）
+        # 翻后：从庄家左边第一个开始
         # postflop_first = next_player(dealer_pos) = sb_pos
-        first_to_act = sb_pos
+        first_to_act = (dealer_pos + 1) % num_players
 
-        order = []
-        for i in range(num_players):
-            seat = (first_to_act + i) % num_players
-            order.append(seat)
-        return order
+    # 生成完整的行动顺序
+    order = []
+    for i in range(num_players):
+        seat = (first_to_act + i) % num_players
+        order.append(seat)
+    return order
 
 
 def get_position_name(seat_idx: int, btn_seat: int, num_players: int) -> str:

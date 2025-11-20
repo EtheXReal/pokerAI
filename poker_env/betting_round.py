@@ -372,12 +372,17 @@ class BettingRound:
             current_player_idx = (current_player_idx + 1) % len(action_order)
 
             # 检查是否所有active玩家都完成了行动
-            # 条件：所有非all-in的active玩家投入相等，且至少行动过一次
+            # 条件：所有非all-in的active玩家投入都等于当前最大投入，且至少行动过一次
             active_non_allin = [p for p in players if p.is_active and not p.is_allin]
             if len(active_non_allin) > 0:
-                active_invested = [p.street_invested for p in active_non_allin]
-                if len(set(active_invested)) == 1 and num_actions >= len(active_non_allin):
-                    # 所有非all-in玩家投入相等且每人至少行动过一次
+                # 获取当前所有active玩家中的最大投入
+                max_street_invested = max(p.street_invested for p in players if p.is_active)
+
+                # 检查所有非all-in玩家是否都匹配了最大投入
+                all_matched = all(p.street_invested == max_street_invested for p in active_non_allin)
+
+                if all_matched and num_actions >= len(active_non_allin):
+                    # 所有非all-in玩家都匹配了最大投入且每人至少行动过一次
                     return None, pot
 
         # 达到max_actions

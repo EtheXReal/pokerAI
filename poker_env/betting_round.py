@@ -94,15 +94,18 @@ class BettingRound:
         while num_actions < max_actions:
             num_actions += 1
 
-            # 检查是否还有玩家需要行动
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) == 0:
-                # 所有玩家都all-in了
-                return None, pot
-            elif len(active_players) == 1:
-                # 其他人都fold了
-                winner = active_players[0]
+            # 首先检查是否只剩1个active玩家（包括all-in的）
+            all_active_players = [p for p in players if p.is_active]
+            if len(all_active_players) == 1:
+                # 只剩1个active玩家，他赢了（其他人都fold了）
+                winner = all_active_players[0]
                 return winner.name, pot
+
+            # 检查是否还有非all-in的玩家需要行动
+            active_non_allin = [p for p in players if p.is_active and not p.is_allin]
+            if len(active_non_allin) == 0:
+                # 所有active玩家都all-in了，进入下一条街
+                return None, pot
 
             # 获取当前行动的玩家
             current_seat = action_order[current_player_idx]
@@ -378,12 +381,12 @@ class BettingRound:
             current_player_idx = (current_player_idx + 1) % len(action_order)
 
             # 检查是否所有active玩家都完成了行动
-            # 条件：所有active玩家的投入相等
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) > 0:
-                active_invested = [p.street_invested for p in active_players]
-                if len(set(active_invested)) == 1 and num_actions >= len(active_players):
-                    # 所有人投入相等且每人至少行动过一次
+            # 条件：所有非all-in的active玩家投入相等，且至少行动过一次
+            active_non_allin = [p for p in players if p.is_active and not p.is_allin]
+            if len(active_non_allin) > 0:
+                active_invested = [p.street_invested for p in active_non_allin]
+                if len(set(active_invested)) == 1 and num_actions >= len(active_non_allin):
+                    # 所有非all-in玩家投入相等且每人至少行动过一次
                     return None, pot
 
         # 达到max_actions

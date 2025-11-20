@@ -131,6 +131,11 @@ class PokerGame:
         actions: List[ActionRecord] = []
 
         if self.config.verbose:
+            # 显示手牌编号和BTN信息
+            btn_player = self.players[btn_seat]
+            print(f"\n{'=' * 80}")
+            print(f"Hand #{hand_num} - BTN: {btn_player.name} (seat {btn_seat})")
+            print(f"{'=' * 80}")
             print(f"\n  === 翻前 ===")
             for player in self.players:
                 pos_name = get_position_name(player.seat, btn_seat, self.config.num_players)

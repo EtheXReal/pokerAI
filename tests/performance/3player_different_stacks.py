@@ -142,7 +142,7 @@ class RandomPlayer(Player):
 
         if game_state.to_call <= 0:
             # 无需跟注，check或bet
-            if rand < 0.6:
+            if rand < 0.5:
                 return PlayerAction(action='check', amount=0)
             else:
                 # 小注bet
@@ -150,13 +150,13 @@ class RandomPlayer(Player):
                 return PlayerAction(action='bet', amount=bet_amount)
         else:
             # 需要跟注
-            if rand < 0.4:
+            if rand < 0.2:
                 return PlayerAction(action='fold', amount=0)
-            elif rand < 0.8:
+            elif rand < 0.5:
                 return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 # raise
-                raise_amount = game_state.facing_bet * 2.5
+                raise_amount = game_state.facing_bet * 5
                 return PlayerAction(action='raise', amount=raise_amount)
 
 

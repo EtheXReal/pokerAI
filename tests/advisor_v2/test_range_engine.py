@@ -8,7 +8,7 @@ import pytest
 import os
 from advisor_v2.analysis.range_engine import RangeEngine
 from advisor_v2.core.data_structures import Action
-from advisor.strategy_engine.gto_baseline import Position
+from advisor_v2.core.data_structures import Position
 from poker_core.cards import Hand, Card
 from poker_core.range import Range
 

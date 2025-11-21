@@ -14,15 +14,15 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import unittest
-from advisor.opponent_modeling import (
+from advisor_v2.modeling import (
     OpponentStats,
     PlayerType,
     ActionType,
     StreetType,
     PositionType
 )
-from advisor.opponent_modeling.stats import create_opponent_stats
-from advisor.opponent_modeling.models import HandResult, ActionRecord
+from advisor_v2.modeling.stats import create_opponent_stats
+from advisor_v2.modeling.models import HandResult, ActionRecord
 
 
 class TestOpponentStatsBasics(unittest.TestCase):

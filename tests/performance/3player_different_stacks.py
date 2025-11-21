@@ -44,8 +44,8 @@ class AdvisorV2Player(Player):
         """使用advisor_v2做决策"""
         try:
             # 转换为advisor格式
-            from advisor.strategy_engine import GameState as AdvisorGameState
-            from advisor.strategy_engine import Position, Street
+            from advisor_v2.core.data_structures import StrategyContext as AdvisorGameState, Position
+            from poker_env.utils import Street
 
             # 位置映射
             position_map = {

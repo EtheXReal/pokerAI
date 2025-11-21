@@ -15,7 +15,7 @@ from typing import List, Tuple, Optional
 from poker_core import Hand, Board, create_deck, Card
 from poker_core.evaluator import HandEvaluator
 from advisor.strategy_engine import ProLevelAdvisor, GameState
-from advisor.opponent_modeling import PlayerType
+from advisor_v2.modeling import PlayerType
 
 
 @dataclass

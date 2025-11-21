@@ -18,7 +18,7 @@ from advisor_v2.analysis.equity_engine import EquityEngine
 from advisor_v2.analysis.board_analyzer import BoardAnalyzer
 from advisor_v2.strategy.gto_strategy import GTOStrategy
 from poker_core.cards import Hand, Card
-from advisor.strategy_engine.gto_baseline import Position
+from advisor_v2.core.data_structures import Position
 
 
 # Mock GameState（简化版advisor的GameState）

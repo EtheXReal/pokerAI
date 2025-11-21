@@ -22,7 +22,7 @@ from advisor_v2.core.data_structures import (
 )
 from poker_core.cards import Hand, Card
 from poker_core.range import Range
-from advisor.strategy_engine.gto_baseline import Position
+from advisor_v2.core.data_structures import Position
 
 
 class TestGTOStrategyPreflop(unittest.TestCase):

@@ -17,8 +17,8 @@ from typing import Tuple
 
 from poker_env import PokerGame, GameConfig, Player, PlayerAction, GameState
 from poker_core import Hand, Board
-from advisor.strategy_engine import GameState as AdvisorGameState
-from advisor.opponent_modeling import PlayerType
+from advisor_v2.core.data_structures import StrategyContext as GameState as AdvisorGameState
+from advisor_v2.modeling import PlayerType
 from advisor_v2.integration.decision_integrator import DecisionIntegrator
 from advisor_v2.analysis.range_engine import RangeEngine
 from advisor_v2.analysis.equity_engine import EquityEngine

@@ -82,7 +82,7 @@ class PokerGame:
             if player.seat != i:
                 raise ValueError(f"Player {player.name} seat mismatch: expected {i}, got {player.seat}")
 
-    def play_hand(self, hand_num: int, btn_seat: int, seed: Optional[int] = None) -> GameResult:
+    def play_hand(self, hand_num: int, btn_seat: int, seed: Optional[int] = None, reset_stacks: bool = True) -> GameResult:
         """
         玩一手完整的牌
 
@@ -90,6 +90,8 @@ class PokerGame:
             hand_num: 手牌编号
             btn_seat: 庄家座位索引
             seed: 随机种子（可选）
+            reset_stacks: 是否重置玩家筹码到config.starting_stack（默认True）
+                         如果为False，保持玩家当前筹码不变
 
         Returns:
             GameResult对象
@@ -98,8 +100,17 @@ class PokerGame:
             random.seed(seed)
 
         # 重置玩家状态
-        for player in self.players:
-            player.reset_for_new_hand(self.config.starting_stack)
+        if reset_stacks:
+            for player in self.players:
+                player.reset_for_new_hand(self.config.starting_stack)
+        else:
+            # 不重置筹码，但需要重置其他状态
+            for player in self.players:
+                player.is_active = True
+                player.is_allin = False
+                player.invested = 0.0
+                player.street_invested = 0.0
+                # 保持player.stack不变
 
         # 发牌
         deck = create_deck()
@@ -131,6 +142,11 @@ class PokerGame:
         actions: List[ActionRecord] = []
 
         if self.config.verbose:
+            # 显示手牌编号和BTN信息
+            btn_player = self.players[btn_seat]
+            print(f"\n{'=' * 80}")
+            print(f"Hand #{hand_num} - BTN: {btn_player.name} (seat {btn_seat})")
+            print(f"{'=' * 80}")
             print(f"\n  === 翻前 ===")
             for player in self.players:
                 pos_name = get_position_name(player.seat, btn_seat, self.config.num_players)
@@ -267,19 +283,51 @@ class PokerGame:
                 print(f"  {player.name}: {strength.rank.name}")
 
         # 计算边池
-        side_pots = SidePotManager.calculate_side_pots(self.players, verbose=self.config.verbose)
+        # 只有在真正有多个边池或不同投入时才显示详细信息
+        active_invested = [p.invested for p in self.players if p.is_active]
+        has_side_pots = len(set(active_invested)) > 1  # 投入金额不同
+
+        # 边池计算（返回边池列表和退款字典）
+        side_pots, refunds = SidePotManager.calculate_side_pots(self.players, verbose=False)
 
         # 验证边池（可选）
-        if not SidePotManager.validate_side_pots(side_pots, self.players):
+        if not SidePotManager.validate_side_pots(side_pots, refunds, self.players):
             print("[WARNING] Side pot validation failed!")
 
-        # 根据边池分配奖金
-        player_winnings = SidePotManager.distribute_pots(
-            side_pots, self.players, hand_strengths_list, verbose=self.config.verbose
+        # 只在真正有边池时才显示详细信息
+        if self.config.verbose and has_side_pots and len(side_pots) > 1:
+            print(f"\n  [Side Pots] Multiple pots due to all-in:")
+            for i, sp in enumerate(side_pots):
+                pot_name = "Main Pot" if i == 0 else f"Side Pot {i}"
+                print(f"    {pot_name}: {sp.amount:.1f}BB (eligible: {sp.eligible_seats})")
+
+        # 根据边池分配奖金（不显示详细信息，稍后统一显示）
+        pot_winnings = SidePotManager.distribute_pots(
+            side_pots, self.players, hand_strengths_list, verbose=False
         )
 
-        # 找到获胜者（赢得任何金额的玩家）
-        winner_seats = [i for i, w in enumerate(player_winnings) if w > ZERO_THRESHOLD]
+        # 显示获胜者（从边池赢得的）
+        if self.config.verbose:
+            for i, amount in enumerate(pot_winnings):
+                if amount > ZERO_THRESHOLD:
+                    print(f"  {self.players[i].name} wins {amount:.1f}BB")
+
+        # 显示退款（未被跟注的筹码）
+        if self.config.verbose and refunds:
+            for seat, refund_amount in refunds.items():
+                print(f"  {self.players[seat].name} refund {refund_amount:.1f}BB (uncalled)")
+
+        # 计算总的player_winnings（边池获胜 + 退款）
+        player_winnings = list(pot_winnings)  # 复制一份
+        for seat, refund_amount in refunds.items():
+            player_winnings[seat] += refund_amount
+
+        # 找到真正的获胜者（盈利 > 0的玩家）
+        winner_seats = []
+        for i, player in enumerate(self.players):
+            profit = player_winnings[i] - player.invested
+            if profit > ZERO_THRESHOLD:
+                winner_seats.append(i)
 
         # 计算每个玩家的盈亏
         player_profits = []

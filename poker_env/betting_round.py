@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 from .player import Player, PlayerAction, GameState
-from .utils import (Street, get_action_order, get_position_name, round_amount,
+from .utils import (Street, get_action_order, get_position_name, round_amount, round_bet_amount,
                     ALLIN_THRESHOLD, FLOAT_TOLERANCE, MIN_BET_UNIT, ZERO_THRESHOLD, BIG_BLIND)
 from advisor.range_engine import Board
 
@@ -94,15 +94,18 @@ class BettingRound:
         while num_actions < max_actions:
             num_actions += 1
 
-            # 检查是否还有玩家需要行动
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) == 0:
-                # 所有玩家都all-in了
-                return None, pot
-            elif len(active_players) == 1:
-                # 其他人都fold了
-                winner = active_players[0]
+            # 首先检查是否只剩1个active玩家（包括all-in的）
+            all_active_players = [p for p in players if p.is_active]
+            if len(all_active_players) == 1:
+                # 只剩1个active玩家，他赢了（其他人都fold了）
+                winner = all_active_players[0]
                 return winner.name, pot
+
+            # 检查是否还有非all-in的玩家需要行动
+            active_non_allin = [p for p in players if p.is_active and not p.is_allin]
+            if len(active_non_allin) == 0:
+                # 所有active玩家都all-in了，进入下一条街
+                return None, pot
 
             # 获取当前行动的玩家
             current_seat = action_order[current_player_idx]
@@ -117,15 +120,6 @@ class BettingRound:
             max_street_invested = max(p.street_invested for p in players if p.is_active)
             facing_bet = max_street_invested
             to_call = max(0, facing_bet - current_player.street_invested)
-
-            # 检查是否可以结束betting round
-            # 条件：所有active玩家的街道投入相等，且至少有一个玩家行动过
-            if num_actions > 1 and to_call <= ZERO_THRESHOLD:
-                # 检查是否所有active玩家投入相等
-                active_invested = [p.street_invested for p in players if p.is_active]
-                if len(set(active_invested)) == 1:
-                    # 所有人投入相等，结束
-                    return None, pot
 
             # 计算game state
             position_name = get_position_name(current_seat, btn_seat, num_players)
@@ -227,18 +221,8 @@ class BettingRound:
                 actual_invested = current_player.invest(call_amount)
                 pot += actual_invested
 
-                # 如果是all-in call且未完全call对手的bet
-                if current_player.is_allin and call_amount < to_call - FLOAT_TOLERANCE:
-                    uncalled_bet = to_call - call_amount
-                    if self.verbose:
-                        print(f"  [All-in call: returning {uncalled_bet:.2f}BB uncalled bet]")
-
-                    # 找到投入最多的玩家，退回uncalled bet
-                    for p in players:
-                        if p.is_active and p.street_invested == facing_bet:
-                            p.return_chips(uncalled_bet)
-                            pot -= uncalled_bet
-                            break
+                # 注意：不在这里退回uncalled bet
+                # uncalled bet由边池系统在showdown时处理
 
                 action_str = f'call {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                 actions.append(ActionRecord(
@@ -256,7 +240,9 @@ class BettingRound:
                 # 但需要继续检查其他玩家
 
             elif action_type == 'bet':
-                bet_amount = min(amount, current_player.stack)
+                # 规范化到0.5BB的整数倍
+                normalized_amount = round_bet_amount(amount)
+                bet_amount = min(normalized_amount, current_player.stack)
                 # 验证：主动bet最小1BB（不包括all-in）
                 if bet_amount < MIN_BET_UNIT and current_player.stack > MIN_BET_UNIT:
                     # Bet太小，改为check
@@ -293,14 +279,7 @@ class BettingRound:
                         actual_invested = current_player.invest(current_player.stack)
                         pot += actual_invested
 
-                        # 退回uncalled bet
-                        uncalled_bet = call_amt - actual_invested
-                        if uncalled_bet > FLOAT_TOLERANCE:
-                            for p in players:
-                                if p.is_active and p.street_invested == facing_bet:
-                                    p.return_chips(uncalled_bet)
-                                    pot -= uncalled_bet
-                                    break
+                        # 注意：不退回uncalled bet，由边池系统处理
 
                         actions.append(ActionRecord(
                             street.value, current_player.name, current_seat,
@@ -317,8 +296,9 @@ class BettingRound:
                         if self.verbose:
                             print(f"  {current_player.name} folds")
                 else:
-                    # 正常raise
-                    raise_amt = min(amount, current_player.stack - call_amt)
+                    # 正常raise - 规范化到0.5BB的整数倍
+                    normalized_amount = round_bet_amount(amount)
+                    raise_amt = min(normalized_amount, current_player.stack - call_amt)
                     raise_to = facing_bet + raise_amt
                     total_invest = call_amt + raise_amt
 
@@ -375,12 +355,17 @@ class BettingRound:
             current_player_idx = (current_player_idx + 1) % len(action_order)
 
             # 检查是否所有active玩家都完成了行动
-            # 条件：所有active玩家的投入相等
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) > 0:
-                active_invested = [p.street_invested for p in active_players]
-                if len(set(active_invested)) == 1 and num_actions >= len(active_players):
-                    # 所有人投入相等且每人至少行动过一次
+            # 条件：所有非all-in的active玩家投入都等于当前最大投入，且至少行动过一次
+            active_non_allin = [p for p in players if p.is_active and not p.is_allin]
+            if len(active_non_allin) > 0:
+                # 获取当前所有active玩家中的最大投入
+                max_street_invested = max(p.street_invested for p in players if p.is_active)
+
+                # 检查所有非all-in玩家是否都匹配了最大投入
+                all_matched = all(p.street_invested == max_street_invested for p in active_non_allin)
+
+                if all_matched and num_actions >= len(active_non_allin):
+                    # 所有非all-in玩家都匹配了最大投入且每人至少行动过一次
                     return None, pot
 
         # 达到max_actions

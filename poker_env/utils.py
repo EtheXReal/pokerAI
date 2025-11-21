@@ -55,6 +55,29 @@ def round_amount(amount: float) -> float:
     return round(amount, PRECISION)
 
 
+def round_bet_amount(amount: float) -> float:
+    """
+    将bet/raise金额规范化到整数BB
+
+    主动bet/raise不允许有小数部分（包括0.5），只允许整数BB
+
+    Args:
+        amount: 原始金额
+
+    Returns:
+        四舍五入到最近的整数BB
+
+    Examples:
+        1.32BB -> 1.0BB
+        1.87BB -> 2.0BB
+        9.35BB -> 9.0BB
+        23.50BB -> 24.0BB
+        2.24BB -> 2.0BB
+    """
+    # 四舍五入到整数BB
+    return round(amount)
+
+
 def is_close(a: float, b: float, tolerance: float = FLOAT_TOLERANCE) -> bool:
     """
     浮点数比较（考虑精度误差）
@@ -100,8 +123,12 @@ def get_action_order(num_players: int, btn_seat: int, street: Street) -> List[in
     """
     获取行动顺序（座位索引列表）
 
-    座位编号从0开始，按顺时针方向递增。
-    BTN是庄家位置，后手位置。
+    使用统一的 next_player 抽象：
+    - dealer_pos = btn_seat
+    - sb_pos = next_player(dealer_pos)
+    - bb_pos = next_player(sb_pos)
+    - preflop_first = next_player(bb_pos)  # 大盲左边第一个
+    - postflop_first = next_player(dealer_pos)  # 庄家左边第一个
 
     Args:
         num_players: 玩家数量
@@ -111,47 +138,42 @@ def get_action_order(num_players: int, btn_seat: int, street: Street) -> List[in
     Returns:
         座位索引列表，表示行动顺序
 
-    德州扑克规则：
-    - Preflop: 从大盲左边第一个开始（UTG），到大盲结束
-    - Flop/Turn/River: 从庄家左边第一个开始（SB），到庄家结束
+    核心规则（适用于所有2-10人游戏）：
+    - 翻前：从大盲左边第一个开始
+    - 翻后：从庄家左边第一个开始
 
-    2人游戏特殊情况：
+    2人游戏：
     - BTN = SB (庄家同时是小盲)
-    - Preflop: SB先行动（需要补齐大盲）
-    - Flop/Turn/River: SB先行动
+    - 翻前：SB/BTN → BB
+    - 翻后：BB → SB/BTN
     """
     if num_players < 2:
         raise ValueError("At least 2 players required")
 
-    # 计算盲注位置
-    sb_seat = btn_seat  # 2人游戏中，BTN=SB
-    bb_seat = (btn_seat + 1) % num_players
+    dealer_pos = btn_seat
 
+    # 计算SB和BB位置（适用于所有游戏）
     if num_players == 2:
-        # 2人游戏：BTN=SB
-        if street == Street.PREFLOP:
-            # Preflop: SB先行动
-            return [sb_seat, bb_seat]
-        else:
-            # Flop/Turn/River: SB先行动
-            return [sb_seat, bb_seat]
+        sb_pos = dealer_pos  # 2人游戏：BTN = SB
+        bb_pos = (dealer_pos + 1) % num_players
     else:
-        # 多人游戏
-        if street == Street.PREFLOP:
-            # Preflop: 从UTG（大盲左边第一个）开始
-            utg_seat = (bb_seat + 1) % num_players
-            order = []
-            for i in range(num_players):
-                seat = (utg_seat + i) % num_players
-                order.append(seat)
-            return order
-        else:
-            # Flop/Turn/River: 从SB开始
-            order = []
-            for i in range(num_players):
-                seat = (sb_seat + i) % num_players
-                order.append(seat)
-            return order
+        sb_pos = (dealer_pos + 1) % num_players
+        bb_pos = (dealer_pos + 2) % num_players
+
+    # 统一规则：
+    if street == Street.PREFLOP:
+        # 翻前：从大盲左边第一个开始
+        first_to_act = (bb_pos + 1) % num_players
+    else:
+        # 翻后：从庄家左边第一个开始
+        first_to_act = (dealer_pos + 1) % num_players
+
+    # 生成完整的行动顺序
+    order = []
+    for i in range(num_players):
+        seat = (first_to_act + i) % num_players
+        order.append(seat)
+    return order
 
 
 def get_position_name(seat_idx: int, btn_seat: int, num_players: int) -> str:

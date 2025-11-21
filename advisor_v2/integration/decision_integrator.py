@@ -45,7 +45,8 @@ class DecisionIntegrator(IDecisionIntegrator):
         range_engine: IRangeEngine,
         equity_engine: Optional[IEquityEngine] = None,
         board_analyzer: Optional[IBoardAnalyzer] = None,
-        strategy: Optional[IStrategy] = None
+        strategy: Optional[IStrategy] = None,
+        tracer: Optional[any] = None
     ):
         """
         初始化DecisionIntegrator
@@ -55,16 +56,22 @@ class DecisionIntegrator(IDecisionIntegrator):
             equity_engine: EquityEngine（翻后需要）
             board_analyzer: BoardAnalyzer（翻后需要）
             strategy: Strategy（默认GTOStrategy）
+            tracer: DecisionTracer（可选，用于调试）
         """
         self.range_engine = range_engine
         self.equity_engine = equity_engine
         self.board_analyzer = board_analyzer
         self.strategy = strategy
+        self.tracer = tracer
 
         # 如果没有提供strategy，使用默认GTOStrategy
         if self.strategy is None:
             from advisor_v2.strategy.gto_strategy import GTOStrategy
             self.strategy = GTOStrategy()
+
+        # 将tracer传递给strategy
+        if self.strategy and hasattr(self.strategy, 'set_tracer') and self.tracer:
+            self.strategy.set_tracer(self.tracer)
 
     def decide(self, game_state: any) -> DecisionTrace:
         """
@@ -84,14 +91,63 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 1. Analysis阶段
         analysis_start = time.time()
 
+        # Trace: Range分析
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_begin()
         hero_range, villain_range, range_advantage = self._analyze_ranges(game_state)
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_end(
+                step_name="Range分析",
+                module="advisor_v2/integration/decision_integrator.py",
+                function="_analyze_ranges",
+                inputs={"position": str(game_state.position), "street": game_state.street},
+                outputs={
+                    "hero_range_size": len(hero_range) if hero_range else 0,
+                    "villain_range_size": len(villain_range) if villain_range else 0,
+                    "range_advantage": range_advantage.advantage_score if range_advantage else None
+                },
+                reasoning=f"分析Hero和Villain的GTO range，以及range interaction"
+            )
+
         equity_info = None
         board_analysis = None
 
         if game_state.street != 'preflop':
             # 翻后需要equity和board分析
+
+            # Trace: Equity计算
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
             equity_info = self._calculate_equity(game_state, villain_range)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_end(
+                    step_name="Equity计算",
+                    module="advisor_v2/integration/decision_integrator.py",
+                    function="_calculate_equity",
+                    inputs={"hand": str(game_state.hero_hand), "board": str(game_state.board)},
+                    outputs={
+                        "point_equity": equity_info.point_equity if equity_info else None,
+                        "equity_distribution": equity_info.equity_distribution if equity_info else None
+                    },
+                    reasoning=f"蒙特卡洛模拟计算Hero手牌对抗Villain range的equity"
+                )
+
+            # Trace: Board分析
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_begin()
             board_analysis = self._analyze_board(game_state)
+            if self.tracer and self.tracer.is_enabled():
+                self.tracer.step_end(
+                    step_name="Board分析",
+                    module="advisor_v2/integration/decision_integrator.py",
+                    function="_analyze_board",
+                    inputs={"board": str(game_state.board)},
+                    outputs={
+                        "texture": board_analysis.texture if board_analysis else None,
+                        "draw_heavy": board_analysis.draw_heavy if board_analysis else None
+                    },
+                    reasoning=f"分析公共牌的texture、draw可能性、equity realization"
+                )
 
         analysis_time = (time.time() - analysis_start) * 1000
 
@@ -99,6 +155,8 @@ class DecisionIntegrator(IDecisionIntegrator):
         strategy_start = time.time()
 
         # 构建StrategyContext
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_begin()
         ctx = self._build_strategy_context(
             game_state,
             hero_range,
@@ -107,14 +165,54 @@ class DecisionIntegrator(IDecisionIntegrator):
             range_advantage,
             board_analysis
         )
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_end(
+                step_name="构建Strategy Context",
+                module="advisor_v2/integration/decision_integrator.py",
+                function="_build_strategy_context",
+                inputs={},
+                outputs={
+                    "street": ctx.street,
+                    "position": str(ctx.position),
+                    "facing_bet": ctx.facing_bet
+                },
+                reasoning="整合所有analysis结果，构建完整的策略上下文"
+            )
 
         # 调用strategy决策
+        # Note: strategy.decide() 内部会自己添加追踪点
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_begin()
         gto_decision = self.strategy.decide(ctx)
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_end(
+                step_name="GTO策略决策",
+                module="advisor_v2/strategy/gto_strategy.py",
+                function="GTOStrategy.decide",
+                inputs={"street": ctx.street, "facing_bet": ctx.facing_bet},
+                outputs={
+                    "action_distribution": gto_decision.action_distribution,
+                    "sizing_distribution": gto_decision.sizing_distribution,
+                    "reasoning": gto_decision.reasoning[:80] + "..." if len(gto_decision.reasoning) > 80 else gto_decision.reasoning
+                },
+                reasoning="基于range percentile (翻前) 或 equity + range advantage (翻后) 做GTO决策"
+            )
 
         strategy_time = (time.time() - strategy_start) * 1000
 
         # 3. 选择最终action
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_begin()
         selected_action = self.select_action(gto_decision)
+        if self.tracer and self.tracer.is_enabled():
+            self.tracer.step_end(
+                step_name="Action采样",
+                module="advisor_v2/integration/decision_integrator.py",
+                function="select_action",
+                inputs={"action_distribution": gto_decision.action_distribution},
+                outputs={"selected_action": selected_action.action, "amount": selected_action.amount},
+                reasoning=f"从GTO混合策略中随机采样：{gto_decision.action_distribution}"
+            )
 
         total_time = (time.time() - start_time) * 1000
 

@@ -36,7 +36,7 @@ class SidePotManager:
     """
 
     @staticmethod
-    def calculate_side_pots(players: List['Player'], verbose: bool = False) -> List[SidePot]:
+    def calculate_side_pots(players: List['Player'], verbose: bool = False) -> Tuple[List[SidePot], dict]:
         """
         根据玩家总投入计算边池
 
@@ -45,24 +45,27 @@ class SidePotManager:
         2. 按投入金额排序（从少到多）
         3. 从最小投入开始，逐级创建边池
         4. 每个边池包含投入≥该级别的所有玩家
+        5. 如果某一层只有1个玩家，不创建边池，而是退款
 
         Args:
             players: 玩家列表
             verbose: 是否打印详细信息
 
         Returns:
-            边池列表（按main pot到side pot顺序）
+            (边池列表, 退款字典)
+            边池列表：按main pot到side pot顺序
+            退款字典：{seat: refund_amount} 未被跟注的筹码退款
 
         示例：
             3人游戏：
-            Player A (seat 0): 投入 30BB
-            Player B (seat 1): 投入 50BB
-            Player C (seat 2): 投入 100BB
+            Player A (seat 0): 投入 80BB
+            Player B (seat 1): 投入 100BB
+            Player C (seat 2): 投入 144BB
 
             结果：
-            Main Pot: 90BB (30x3), eligible=[0,1,2]
+            Main Pot: 240BB (80x3), eligible=[0,1,2]
             Side Pot 1: 40BB (20x2), eligible=[1,2]
-            Side Pot 2: 50BB (50x1), eligible=[2]
+            Refund: {2: 44BB}  # C的44BB未被跟注
         """
         # 获取所有active玩家及其投入
         # 包括fold的玩家（他们的投入也要算在pot中）
@@ -84,6 +87,7 @@ class SidePotManager:
                 print(f"  [SidePot]   seat {seat}: {invested:.1f}BB ({status})")
 
         side_pots = []
+        refunds = {}  # {seat: refund_amount}
         prev_level = 0.0
 
         # 逐级创建边池
@@ -92,10 +96,9 @@ class SidePotManager:
                 # 计算这一级的边池金额
                 level_amount = invested - prev_level
 
-                # 这一级包含当前玩家及之后所有投入更多的玩家
-                # 注意：即使玩家fold了，他们的投入也要算在pot中
+                # 计算这一层有多少人真正投入了筹码
+                # 只算投入≥当前level的玩家（包括folded玩家的投入）
                 num_contributors = len(invested_players) - i
-                pot_amount = level_amount * num_contributors
 
                 # 有资格赢得此边池的玩家：投入≥此级别且still active
                 eligible_seats = []
@@ -104,7 +107,43 @@ class SidePotManager:
                     if is_active_j:  # 只有active玩家才能赢
                         eligible_seats.append(seat_j)
 
-                # 创建边池
+                # 检查：如果只有1个玩家eligible
+                if len(eligible_seats) < 2:
+                    if len(eligible_seats) == 1:
+                        refund_seat = eligible_seats[0]
+
+                        # 关键修复：如果有多个contributors（包括fold的玩家），仍然要建边池
+                        # 只有当该玩家是唯一contributor时，才是真正的uncalled bet需要退款
+                        if num_contributors > 1:
+                            # 有其他玩家（虽然fold了）也贡献了筹码，建边池
+                            pot_amount = level_amount * num_contributors
+                            side_pot = SidePot(
+                                amount=pot_amount,
+                                eligible_seats=eligible_seats,
+                                cap_per_player=invested
+                            )
+                            side_pots.append(side_pot)
+                            if verbose:
+                                pot_type = "Main Pot" if len(side_pots) == 1 else f"Side Pot {len(side_pots)-1}"
+                                print(f"  [SidePot] {pot_type}: {pot_amount:.1f}BB, eligible={eligible_seats}, cap={invested:.1f}BB (single eligible, but has folded contributors)")
+                        else:
+                            # 只有这个玩家在这一级，是真正的uncalled bet
+                            refund_amount = level_amount
+                            refunds[refund_seat] = refunds.get(refund_seat, 0.0) + refund_amount
+                            if verbose:
+                                refund_player_name = None
+                                for p in players:
+                                    if p.seat == refund_seat:
+                                        refund_player_name = p.name
+                                        break
+                                print(f"  [SidePot] Refunding {refund_amount:.1f}BB uncalled bet to {refund_player_name} (seat {refund_seat})")
+                    # 继续下一级
+                    prev_level = invested
+                    continue
+
+                # 有2个或以上玩家eligible，创建边池
+                pot_amount = level_amount * num_contributors
+
                 side_pot = SidePot(
                     amount=pot_amount,
                     eligible_seats=eligible_seats,
@@ -118,7 +157,7 @@ class SidePotManager:
 
                 prev_level = invested
 
-        return side_pots
+        return side_pots, refunds
 
     @staticmethod
     def distribute_pots(side_pots: List[SidePot], players: List['Player'],
@@ -177,13 +216,18 @@ class SidePotManager:
         return player_winnings
 
     @staticmethod
-    def validate_side_pots(side_pots: List[SidePot], players: List['Player']) -> bool:
+    def validate_side_pots(side_pots: List[SidePot], refunds: dict, players: List['Player']) -> bool:
         """
         验证边池计算是否正确
 
         检查：
-        1. 所有边池金额之和 = 所有玩家投入之和
+        1. 所有边池金额之和 + 退款之和 = 所有玩家投入之和
         2. 每个边池的eligible玩家都是active的
+
+        Args:
+            side_pots: 边池列表
+            refunds: 退款字典 {seat: amount}
+            players: 玩家列表
 
         Returns:
             True if valid, False otherwise
@@ -194,10 +238,13 @@ class SidePotManager:
         # 计算边池总额
         total_side_pots = sum(sp.amount for sp in side_pots)
 
-        # 允许小数误差
-        if abs(total_invested - total_side_pots) > SMALL_BLIND:
+        # 计算退款总额
+        total_refunds = sum(refunds.values())
+
+        # 验证：总投入 = 边池 + 退款
+        if abs(total_invested - (total_side_pots + total_refunds)) > SMALL_BLIND:
             print(f"[SidePot] ERROR: Total invested ({total_invested:.1f}BB) != "
-                  f"Total side pots ({total_side_pots:.1f}BB)")
+                  f"Side pots ({total_side_pots:.1f}BB) + Refunds ({total_refunds:.1f}BB)")
             return False
 
         # 验证eligible玩家
@@ -239,14 +286,14 @@ def test_side_pot_calculation():
     players[1].invest(50.0)  # B投入50BB
     players[2].invest(100.0) # C投入100BB
 
-    side_pots = SidePotManager.calculate_side_pots(players, verbose=True)
+    side_pots, refunds = SidePotManager.calculate_side_pots(players, verbose=True)
 
     assert len(side_pots) == 3
     assert abs(side_pots[0].amount - 90.0) < 0.1  # Main pot: 30x3
     assert abs(side_pots[1].amount - 40.0) < 0.1  # Side pot 1: 20x2
     assert abs(side_pots[2].amount - 50.0) < 0.1  # Side pot 2: 50x1
 
-    assert SidePotManager.validate_side_pots(side_pots, players)
+    assert SidePotManager.validate_side_pots(side_pots, refunds, players)
     print("✓ Test 1 passed")
 
     # 测试2: 两人，一方all-in
@@ -259,12 +306,12 @@ def test_side_pot_calculation():
     players[0].invest(50.0)   # A投入50BB, all-in
     players[1].invest(50.0)   # B投入50BB, call
 
-    side_pots = SidePotManager.calculate_side_pots(players, verbose=True)
+    side_pots, refunds = SidePotManager.calculate_side_pots(players, verbose=True)
 
     assert len(side_pots) == 1  # 只有main pot
     assert abs(side_pots[0].amount - 100.0) < 0.1  # 50x2
 
-    assert SidePotManager.validate_side_pots(side_pots, players)
+    assert SidePotManager.validate_side_pots(side_pots, refunds, players)
     print("✓ Test 2 passed")
 
     # 测试3: 四人，连续all-in
@@ -281,7 +328,7 @@ def test_side_pot_calculation():
     players[2].invest(60.0)  # C: 60BB all-in
     players[3].invest(100.0) # D: 100BB call
 
-    side_pots = SidePotManager.calculate_side_pots(players, verbose=True)
+    side_pots, refunds = SidePotManager.calculate_side_pots(players, verbose=True)
 
     assert len(side_pots) == 4
     assert abs(side_pots[0].amount - 80.0) < 0.1   # Main: 20x4
@@ -289,7 +336,7 @@ def test_side_pot_calculation():
     assert abs(side_pots[2].amount - 40.0) < 0.1   # Side 2: 20x2
     assert abs(side_pots[3].amount - 40.0) < 0.1   # Side 3: 40x1
 
-    assert SidePotManager.validate_side_pots(side_pots, players)
+    assert SidePotManager.validate_side_pots(side_pots, refunds, players)
     print("✓ Test 3 passed")
 
     # 测试4: 有人fold
@@ -305,7 +352,7 @@ def test_side_pot_calculation():
     players[1].is_active = False  # B fold了
     players[2].invest(100.0) # C投入100BB
 
-    side_pots = SidePotManager.calculate_side_pots(players, verbose=True)
+    side_pots, refunds = SidePotManager.calculate_side_pots(players, verbose=True)
 
     # B fold了，但他的投入还在pot中
     # Main pot: 30x3=90BB, eligible=[0,2] (B fold了不能赢)
@@ -316,7 +363,7 @@ def test_side_pot_calculation():
     assert 0 in side_pots[0].eligible_seats and 2 in side_pots[0].eligible_seats
     assert 1 not in side_pots[0].eligible_seats  # B fold了
 
-    assert SidePotManager.validate_side_pots(side_pots, players)
+    assert SidePotManager.validate_side_pots(side_pots, refunds, players)
     print("✓ Test 4 passed")
 
     print("\n" + "=" * 80)

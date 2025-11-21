@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import random
 import time
-from advisor.range_engine import Hand, create_deck
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core import Hand, create_deck
+from poker_core.evaluator import HandEvaluator
 from advisor.strategy_engine import ProLevelAdvisor, GameState
 from advisor.opponent_modeling import PlayerType
 

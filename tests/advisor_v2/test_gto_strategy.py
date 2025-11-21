@@ -20,8 +20,8 @@ from advisor_v2.core.data_structures import (
     BoardAnalysis,
     Action,
 )
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
+from poker_core.cards import Hand, Card
+from poker_core.range import Range
 from advisor.strategy_engine.gto_baseline import Position
 
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from .player import Player, PlayerAction, GameState
 from .utils import (Street, get_action_order, get_position_name, round_amount, round_bet_amount,
                     ALLIN_THRESHOLD, FLOAT_TOLERANCE, MIN_BET_UNIT, ZERO_THRESHOLD, BIG_BLIND)
-from advisor.range_engine import Board
+from poker_core import Board
 
 
 @dataclass

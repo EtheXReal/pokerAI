@@ -24,7 +24,7 @@ from advisor_v2.core.data_structures import (
     RangeAdvantage,
     BoardAnalysis,
 )
-from advisor.range_engine.cards import Hand
+from poker_core.cards import Hand
 
 
 class GTOStrategy(IStrategy):

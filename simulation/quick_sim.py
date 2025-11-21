@@ -8,8 +8,8 @@ import sys
 sys.path.append('/home/user/pokerAI')
 
 import random
-from advisor.range_engine import Hand, Board, create_deck
-from advisor.range_engine.evaluator import HandEvaluator, Rank
+from poker_core import Hand, Board, create_deck
+from poker_core.evaluator import HandEvaluator, Rank
 
 
 def hand_strength_score(hand: Hand) -> int:

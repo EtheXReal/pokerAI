@@ -10,8 +10,8 @@ import random
 import sys
 sys.path.append('/home/user/pokerAI')
 
-from advisor.range_engine import Hand, Board, create_deck, Card
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core import Hand, Board, create_deck, Card
+from poker_core.evaluator import HandEvaluator
 
 
 @dataclass

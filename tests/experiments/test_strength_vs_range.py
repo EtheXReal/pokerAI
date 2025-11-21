@@ -14,7 +14,7 @@ import sys
 sys.path.append('/home/user/pokerAI')
 
 from advisor.strategy_engine.advisor import ProLevelAdvisor, GameState
-from advisor.range_engine import Hand, Board
+from poker_core import Hand, Board
 from advisor.opponent_modeling import PlayerType
 from advisor.strategy_engine.hand_strength import calculate_preflop_hand_strength
 

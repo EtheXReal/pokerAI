@@ -1,7 +1,8 @@
 """
-Range引擎模块 (Range Engine Module)
+Poker Core Library - 德州扑克核心底层库
 
-Phase 2.1 - 范围思维核心
+这是一个独立的通用扑克底层库，提供扑克游戏的基础数据结构和算法。
+它不依赖于任何特定的AI实现，可以被任何扑克相关项目使用。
 
 核心功能:
 1. 扑克牌基础类 (cards.py) - Card, Hand, Board
@@ -16,7 +17,14 @@ Phase 2.1 - 范围思维核心
 - 支持 Multiway equity (3+人底池)
 - 完整的翻前范围数据库
 - 准确的公共牌结构分析
-- 纯Python实现，零依赖
+- 纯Python实现，零依赖（除了treys）
+
+用法:
+    from poker_core import Card, Hand, Range, EquityCalculator
+
+    hand = Hand.from_str("AsKd")
+    range = Range.from_string("QQ+,AK")
+    equity = EquityCalculator.calculate(hand, range)
 """
 
 from .cards import (

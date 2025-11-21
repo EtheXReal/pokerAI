@@ -7,10 +7,10 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from advisor.range_engine import Hand, Board, Card, Range
+from poker_core import Hand, Board, Card, Range
 from advisor.strategy_engine import ProLevelAdvisor, GameState
 from advisor.opponent_modeling import PlayerType
-from advisor.range_engine.preflop_ranges import get_open_range
+from poker_core.preflop_ranges import get_open_range
 
 print("=" * 80)
 print("验证equity和range_advantage计算")
@@ -84,7 +84,7 @@ else:
 print(f"Range advantage: {range_advantage}")
 
 # 计算equity
-from advisor.range_engine import EquityCalculator
+from poker_core import EquityCalculator
 
 equity_calc = EquityCalculator()
 result = equity_calc.calculate(

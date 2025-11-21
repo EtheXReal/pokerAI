@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import unittest
-from advisor.range_engine import Hand, Board, Range, EquityCalculator
+from poker_core import Hand, Board, Range, EquityCalculator
 
 
 class TestMultiwayEquity(unittest.TestCase):

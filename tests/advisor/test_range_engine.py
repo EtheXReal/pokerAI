@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import unittest
 from treys import Card
-from advisor.range_engine import (
+from poker_core import (
     Range,
     parse_range_dict,
     EquityCalculator,
@@ -218,7 +218,7 @@ class TestRangeIntegration(unittest.TestCase):
         1. 有合理的3-bet范围
         2. vs BTN范围有正equity
         """
-        from advisor.range_engine import get_3bet_range, merge_range_dicts
+        from poker_core import get_3bet_range, merge_range_dicts
 
         btn_open = parse_range_dict(get_open_range('BTN', 'normal'))
         bb_3bet_dict = get_3bet_range('BB', 'BTN')

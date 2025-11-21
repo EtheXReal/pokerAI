@@ -13,7 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from advisor.range_engine import Hand, Card
+from poker_core import Hand, Card
 from advisor.strategy_engine import ProLevelAdvisor, GameState
 from advisor.strategy_engine.hand_strength import calculate_preflop_hand_strength
 

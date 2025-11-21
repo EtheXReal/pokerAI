@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import unittest
 
-from advisor.range_engine import (
+from poker_core import (
     Card, Hand, Board, Rank,
     HandCombo, Range, RangeGenerator, RangeParser,
     EquityCalculator,

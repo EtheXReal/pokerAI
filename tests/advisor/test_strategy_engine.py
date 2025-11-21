@@ -18,7 +18,7 @@ from advisor.strategy_engine import (
     DecisionOutput, merge_decisions,
     ProLevelAdvisor, GameState, create_advisor
 )
-from advisor.range_engine import Hand, Board
+from poker_core import Hand, Board
 from advisor.opponent_modeling import PlayerType, OpponentStats
 
 

@@ -17,7 +17,7 @@ from advisor_v2.analysis.range_engine import RangeEngine
 from advisor_v2.analysis.equity_engine import EquityEngine
 from advisor_v2.analysis.board_analyzer import BoardAnalyzer
 from advisor_v2.strategy.gto_strategy import GTOStrategy
-from advisor.range_engine.cards import Hand, Card
+from poker_core.cards import Hand, Card
 from advisor.strategy_engine.gto_baseline import Position
 
 

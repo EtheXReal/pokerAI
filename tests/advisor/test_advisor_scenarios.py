@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import unittest
 from advisor.strategy_engine import ProLevelAdvisor, GameState, create_advisor
-from advisor.range_engine import Hand, Board
+from poker_core import Hand, Board
 from advisor.opponent_modeling import PlayerType
 
 

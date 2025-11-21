@@ -12,8 +12,8 @@ import time
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 
-from advisor.range_engine import Hand, Board, create_deck, Card
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core import Hand, Board, create_deck, Card
+from poker_core.evaluator import HandEvaluator
 from advisor.strategy_engine import ProLevelAdvisor, GameState
 from advisor.opponent_modeling import PlayerType
 
@@ -1017,7 +1017,7 @@ def run_full_test(num_hands: int = 10):
     print(f'  开始时间: {time.strftime("%Y-%m-%d %H:%M:%S")}')
 
     # 初始化
-    from advisor.range_engine.evaluator_fast_v2 import precompute_if_needed_v2
+    from poker_core.evaluator_fast_v2 import precompute_if_needed_v2
     print('\n初始化查找表...')
     precompute_if_needed_v2()
     print('查找表就绪')

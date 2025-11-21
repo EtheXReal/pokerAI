@@ -7,7 +7,7 @@ Orchestrate所有模块生成完整决策，确保模块不被架空。
 import time
 import uuid
 import random
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from advisor_v2.core.interfaces.integration_interface import IDecisionIntegrator
 from advisor_v2.core.interfaces.analysis_interface import (
@@ -25,9 +25,12 @@ from advisor_v2.core.data_structures import (
     RangeAdvantage,
     BoardAnalysis,
 )
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
-from advisor.strategy_engine.gto_baseline import Position
+from poker_core.cards import Hand, Card
+from poker_core.range import Range
+from advisor_v2.core.data_structures import Position
+
+# 对手建模组件
+from advisor_v2.modeling import StatsTracker, PlayerClassifier, OpponentStats, PlayerType
 
 
 class DecisionIntegrator(IDecisionIntegrator):
@@ -72,6 +75,10 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 将tracer传递给strategy
         if self.strategy and hasattr(self.strategy, 'set_tracer') and self.tracer:
             self.strategy.set_tracer(self.tracer)
+
+        # 初始化对手建模组件 (Phase 4)
+        self.tracker = StatsTracker()
+        self.classifier = PlayerClassifier()
 
     def decide(self, game_state: any) -> DecisionTrace:
         """
@@ -380,6 +387,9 @@ class DecisionIntegrator(IDecisionIntegrator):
             facing_bet = game_state.facing_bet > 0.01
             facing_bet_size = game_state.facing_bet if facing_bet else 0.0
 
+        # 获取对手数据 (Phase 4)
+        villain_tendencies = self._get_villain_tendencies(game_state)
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
@@ -391,7 +401,7 @@ class DecisionIntegrator(IDecisionIntegrator):
             hero_range=hero_range,
             villain_range=villain_range,
             villain_position=villain_position,
-            villain_tendencies={},  # TODO: Phase 2集成OpponentModel
+            villain_tendencies=villain_tendencies,  # ✅ Phase 4: 集成对手建模
             equity_info=equity_info,
             range_advantage=range_advantage,
             board_analysis=board_analysis,
@@ -501,3 +511,55 @@ class DecisionIntegrator(IDecisionIntegrator):
             return Position.BTN
         else:
             return Position.CO
+
+    def _get_villain_tendencies(self, game_state: any) -> Dict[str, float]:
+        """
+        获取对手倾向数据 (Phase 4)
+
+        Args:
+            game_state: GameState
+
+        Returns:
+            Dict包含对手统计和类型
+        """
+        # 获取对手ID（如果game_state有提供）
+        villain_id = getattr(game_state, 'opponent_id', 'unknown_opponent')
+
+        # 从tracker获取统计数据
+        villain_stats = self.tracker.get_stats(villain_id)
+
+        # 如果有足够数据，进行分类
+        if villain_stats and villain_stats.hands_played >= 20:
+            classification_result = self.classifier.classify(villain_stats)
+            player_type = classification_result.player_type
+            confidence = classification_result.confidence
+        else:
+            # 数据不足，假设unknown
+            player_type = PlayerType.UNKNOWN
+            confidence = 0.0
+
+        # 构建tendencies字典
+        tendencies = {
+            'player_type': player_type.value if hasattr(player_type, 'value') else str(player_type),
+            'confidence': confidence,
+            'vpip': villain_stats.vpip if villain_stats else 0.25,  # 默认25%
+            'pfr': villain_stats.pfr if villain_stats else 0.18,    # 默认18%
+            'af': villain_stats.af if villain_stats else 1.0,
+            'hands_played': villain_stats.hands_played if villain_stats else 0,
+        }
+
+        return tendencies
+
+    def update_observation(self, hand_history: any):
+        """
+        更新对手观察数据 (Phase 4)
+
+        在每手牌结束后调用，更新对手统计
+
+        Args:
+            hand_history: 手牌历史数据（包含所有行动）
+        """
+        # TODO: 实现hand_history解析和统计更新
+        # 当前版本：预留接口，暂不实现
+        # 完整实现需要解析hand_history并调用tracker.update_stats()
+        pass

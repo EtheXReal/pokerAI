@@ -15,9 +15,9 @@ from collections import defaultdict
 
 from advisor_v2.core.interfaces.analysis_interface import IRangeEngine
 from advisor_v2.core.data_structures import RangeAdvantage, Action
-from advisor.strategy_engine.gto_baseline import Position
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
+from advisor_v2.core.data_structures import Position
+from poker_core.cards import Hand, Card
+from poker_core.range import Range
 
 
 class RangeEngine(IRangeEngine):
@@ -360,7 +360,7 @@ class RangeEngine(IRangeEngine):
         # 完整实现会调用EquityEngine，但那会导致循环依赖
         # 这里只用于range内部排序，不需要绝对准确
 
-        from advisor.range_engine.evaluator import HandEvaluator as Evaluator
+        from poker_core.evaluator import HandEvaluator as Evaluator
         evaluator = Evaluator()
 
         try:
@@ -459,7 +459,7 @@ class RangeEngine(IRangeEngine):
         Returns:
             -1到1的nut advantage评分
         """
-        from advisor.range_engine.evaluator import HandEvaluator as Evaluator
+        from poker_core.evaluator import HandEvaluator as Evaluator
         evaluator = Evaluator()
 
         hero_hands = hero_range.to_hands()

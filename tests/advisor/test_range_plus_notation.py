@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import unittest
-from advisor.range_engine import Range
+from poker_core import Range
 
 
 class TestRangePlusNotation(unittest.TestCase):
@@ -133,7 +133,7 @@ class TestRangePlusNotation(unittest.TestCase):
 
     def test_premium_range(self):
         """测试premium范围 (使用helper函数)"""
-        from advisor.range_engine.range import create_premium_range
+        from poker_core.range import create_premium_range
 
         range_obj = create_premium_range()
         combos = list(range_obj)
@@ -144,7 +144,7 @@ class TestRangePlusNotation(unittest.TestCase):
 
     def test_broadway_range(self):
         """测试broadway范围 (使用helper函数)"""
-        from advisor.range_engine.range import create_broadw_range
+        from poker_core.range import create_broadw_range
 
         range_obj = create_broadw_range()
         combos = list(range_obj)
@@ -161,7 +161,7 @@ class TestRangePlusNotation(unittest.TestCase):
 
     def test_any_pair_range(self):
         """测试所有对子 "22+" """
-        from advisor.range_engine.range import create_any_pair_range
+        from poker_core.range import create_any_pair_range
 
         range_obj = create_any_pair_range()
         combos = list(range_obj)

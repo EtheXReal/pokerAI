@@ -11,8 +11,8 @@ Model Layer负责对手建模，包括：
 from abc import ABC, abstractmethod
 from typing import Optional
 from advisor_v2.core.data_structures import PlayerProfile, PlayerType, Action
-from advisor.strategy_engine.gto_baseline import Position
-from advisor.range_engine.range import Range
+from advisor_v2.core.data_structures import Position
+from poker_core.range import Range
 
 
 class IOpponentModel(ABC):

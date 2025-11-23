@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from advisor.range_engine import Hand, Board, EquityCalculator
+from poker_core import Hand, Board, EquityCalculator
 
 
 def test_ultra_precision():

@@ -29,10 +29,10 @@ from dataclasses import dataclass
 from typing import List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from advisor.range_engine import Hand, Board, create_deck, Card
-from advisor.range_engine.evaluator import HandEvaluator
-from advisor.strategy_engine import GameState
-from advisor.opponent_modeling import PlayerType
+from poker_core import Hand, Board, create_deck, Card
+from poker_core.evaluator import HandEvaluator
+from advisor_v2.core.data_structures import StrategyContext as GameState
+from advisor_v2.modeling import PlayerType
 from advisor_v2.integration.decision_integrator import DecisionIntegrator
 from advisor_v2.analysis.range_engine import RangeEngine
 from advisor_v2.analysis.equity_engine import EquityEngine

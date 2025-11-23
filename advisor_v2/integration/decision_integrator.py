@@ -7,7 +7,7 @@ Orchestrate所有模块生成完整决策，确保模块不被架空。
 import time
 import uuid
 import random
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from advisor_v2.core.interfaces.integration_interface import IDecisionIntegrator
 from advisor_v2.core.interfaces.analysis_interface import (
@@ -25,9 +25,12 @@ from advisor_v2.core.data_structures import (
     RangeAdvantage,
     BoardAnalysis,
 )
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
-from advisor.strategy_engine.gto_baseline import Position
+from poker_core.cards import Hand, Card
+from poker_core.range import Range
+from advisor_v2.core.data_structures import Position
+
+# 对手建模组件
+from advisor_v2.modeling import StatsTracker, PlayerClassifier, OpponentStats, PlayerType
 
 
 class DecisionIntegrator(IDecisionIntegrator):
@@ -64,14 +67,19 @@ class DecisionIntegrator(IDecisionIntegrator):
         self.strategy = strategy
         self.tracer = tracer
 
-        # 如果没有提供strategy，使用默认GTOStrategy
+        # 如果没有提供strategy，使用默认HybridStrategy
+        # HybridStrategy = GTO基准 + 对手建模Exploit调整
         if self.strategy is None:
-            from advisor_v2.strategy.gto_strategy import GTOStrategy
-            self.strategy = GTOStrategy()
+            from advisor_v2.strategy.hybrid_strategy import HybridStrategy
+            self.strategy = HybridStrategy()
 
         # 将tracer传递给strategy
         if self.strategy and hasattr(self.strategy, 'set_tracer') and self.tracer:
             self.strategy.set_tracer(self.tracer)
+
+        # 初始化对手建模组件 (Phase 4)
+        self.tracker = StatsTracker()
+        self.classifier = PlayerClassifier()
 
     def decide(self, game_state: any) -> DecisionTrace:
         """
@@ -317,8 +325,11 @@ class DecisionIntegrator(IDecisionIntegrator):
 
         board = list(game_state.board)
 
+        # 向后兼容：支持 .hero_hand 和 .hand
+        hero_hand = getattr(game_state, 'hero_hand', None) or getattr(game_state, 'hand', None)
+
         return self.equity_engine.calculate_equity(
-            hand=game_state.hero_hand,
+            hand=hero_hand,
             villain_range=villain_range,
             board=board,
             iterations=iterations
@@ -380,18 +391,27 @@ class DecisionIntegrator(IDecisionIntegrator):
             facing_bet = game_state.facing_bet > 0.01
             facing_bet_size = game_state.facing_bet if facing_bet else 0.0
 
+        # 获取对手数据 (Phase 4)
+        villain_tendencies = self._get_villain_tendencies(game_state)
+
+        # 向后兼容：支持 poker_env.GameState 和 advisor v1 GameState
+        # poker_env.GameState 使用 .pot 和 .hand
+        # advisor v1 GameState 使用 .pot_size 和 .hero_hand
+        pot_size = getattr(game_state, 'pot_size', None) or getattr(game_state, 'pot', 0.0)
+        hero_hand = getattr(game_state, 'hero_hand', None) or getattr(game_state, 'hand', None)
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
             position=position,
             action_history=action_history,
-            pot_size=game_state.pot_size,
+            pot_size=pot_size,
             effective_stack=game_state.effective_stack,
-            hero_hand=game_state.hero_hand,
+            hero_hand=hero_hand,
             hero_range=hero_range,
             villain_range=villain_range,
             villain_position=villain_position,
-            villain_tendencies={},  # TODO: Phase 2集成OpponentModel
+            villain_tendencies=villain_tendencies,  # ✅ Phase 4: 集成对手建模
             equity_info=equity_info,
             range_advantage=range_advantage,
             board_analysis=board_analysis,
@@ -447,7 +467,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             Action list
         """
         action_history = []
-        if game_state.action_history:
+        # 向后兼容：poker_env.GameState 可能没有 action_history 属性
+        if hasattr(game_state, 'action_history') and game_state.action_history:
             for action_str in game_state.action_history:
                 # 简化：只记录action类型
                 if action_str in ['fold', 'call', 'check']:
@@ -501,3 +522,77 @@ class DecisionIntegrator(IDecisionIntegrator):
             return Position.BTN
         else:
             return Position.CO
+
+    def _get_villain_tendencies(self, game_state: any) -> Dict[str, float]:
+        """
+        获取对手倾向数据 (Phase 4)
+
+        Args:
+            game_state: GameState
+
+        Returns:
+            Dict包含对手统计和类型
+        """
+        # 获取对手ID（如果game_state有提供）
+        villain_id = getattr(game_state, 'opponent_id', None)
+
+        # 如果没有直接提供opponent_id，尝试智能识别
+        if not villain_id:
+            # 获取当前玩家名字
+            hero_name = game_state.player.name if hasattr(game_state, 'player') and hasattr(game_state.player, 'name') else None
+
+            # 从tracker中找到除了hero之外的对手
+            all_stats = self.tracker.get_all_stats()
+            villain_candidates = [pid for pid in all_stats.keys() if pid != hero_name]
+
+            # 如果只有一个对手（HU），使用它
+            if len(villain_candidates) == 1:
+                villain_id = villain_candidates[0]
+            elif len(villain_candidates) > 1:
+                # 多个对手：使用手牌数最多的（最有统计意义）
+                villain_id = max(villain_candidates, key=lambda pid: all_stats[pid].hands_played)
+            else:
+                # 没有对手数据
+                villain_id = 'unknown_opponent'
+
+        # 从tracker获取统计数据（避免为unknown_opponent创建空记录）
+        if villain_id == 'unknown_opponent':
+            villain_stats = None
+        else:
+            villain_stats = self.tracker.get_stats(villain_id)
+
+        # 如果有足够数据，进行分类
+        if villain_stats and villain_stats.hands_played >= 20:
+            classification_result = self.classifier.classify(villain_stats)
+            player_type = classification_result.player_type
+            confidence = classification_result.confidence
+        else:
+            # 数据不足，假设unknown
+            player_type = PlayerType.UNKNOWN
+            confidence = 0.0
+
+        # 构建tendencies字典
+        tendencies = {
+            'player_type': player_type.value if hasattr(player_type, 'value') else str(player_type),
+            'confidence': confidence,
+            'vpip': villain_stats.vpip if villain_stats else 0.25,  # 默认25%
+            'pfr': villain_stats.pfr if villain_stats else 0.18,    # 默认18%
+            'af': villain_stats.af if villain_stats else 1.0,
+            'hands_played': villain_stats.hands_played if villain_stats else 0,
+        }
+
+        return tendencies
+
+    def update_observation(self, hand_history: any):
+        """
+        更新对手观察数据 (Phase 4)
+
+        在每手牌结束后调用，更新对手统计
+
+        Args:
+            hand_history: 手牌历史数据（包含所有行动）
+        """
+        # TODO: 实现hand_history解析和统计更新
+        # 当前版本：预留接口，暂不实现
+        # 完整实现需要解析hand_history并调用tracker.update_stats()
+        pass

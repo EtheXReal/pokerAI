@@ -14,9 +14,9 @@ from collections import OrderedDict
 
 from advisor_v2.core.interfaces.analysis_interface import IEquityEngine
 from advisor_v2.core.data_structures import EquityInfo
-from advisor.range_engine.cards import Hand, Card, Rank, Suit
-from advisor.range_engine.range import Range
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core.cards import Hand, Card, Rank, Suit
+from poker_core.range import Range
+from poker_core.evaluator import HandEvaluator
 
 
 class Deck:

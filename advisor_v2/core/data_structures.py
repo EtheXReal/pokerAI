@@ -8,10 +8,30 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Any
 from enum import Enum
 
-# 复用advisor的基础类型
-from advisor.strategy_engine.gto_baseline import Position
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
+# 复用poker_core的基础类型
+from poker_core.cards import Hand, Card
+from poker_core.range import Range
+
+# ============================================================================
+# 基础枚举和数据类
+# ============================================================================
+
+class Position(Enum):
+    """
+    玩家位置枚举
+
+    支持2-10人游戏的所有位置：
+    - 2人: BTN, BB
+    - 3-4人: BTN, SB, BB
+    - 5-6人: BTN, SB, BB, UTG, CO
+    - 7+人: BTN, SB, BB, UTG, MP, CO
+    """
+    UTG = 'UTG'  # Under the Gun (第一个行动)
+    MP = 'MP'    # Middle Position
+    CO = 'CO'    # Cut Off
+    BTN = 'BTN'  # Button (庄家)
+    SB = 'SB'    # Small Blind
+    BB = 'BB'    # Big Blind
 
 # Action需要定义（advisor中没有统一的Action类）
 @dataclass

@@ -11,7 +11,7 @@ BoardAnalyzer - Board texture分析
 from typing import List, Dict, Set
 from advisor_v2.core.interfaces.analysis_interface import IBoardAnalyzer
 from advisor_v2.core.data_structures import BoardAnalysis
-from advisor.range_engine.cards import Card, Rank
+from poker_core.cards import Card, Rank
 
 
 class BoardAnalyzer(IBoardAnalyzer):

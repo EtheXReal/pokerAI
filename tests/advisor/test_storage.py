@@ -17,7 +17,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from advisor.opponent_modeling import (
+from advisor_v2.modeling import (
     OpponentStats,
     create_opponent_stats,
     SQLiteStorage,

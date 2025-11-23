@@ -7,8 +7,8 @@ import random
 from dataclasses import dataclass
 from typing import List, Optional
 
-from advisor.range_engine import Hand, Board, create_deck, Card
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core import Hand, Board, create_deck, Card
+from poker_core.evaluator import HandEvaluator
 
 from .player import Player
 from .betting_round import BettingRound, ActionRecord
@@ -350,7 +350,7 @@ class PokerGame:
             else:
                 hand_strength_names.append("FOLDED")
 
-        return GameResult(
+        result = GameResult(
             hand_num=hand_num,
             btn_seat=btn_seat,
             player_hands=player_hands,
@@ -364,6 +364,11 @@ class PokerGame:
             showdown=True,
             hand_strengths=hand_strength_names
         )
+
+        # 通知所有玩家手牌结束
+        self._notify_hand_complete(result)
+
+        return result
 
     def _finalize_result(self, hand_num: int, btn_seat: int, winner_name: str, pot: float,
                         actions: List[ActionRecord],
@@ -391,7 +396,7 @@ class PokerGame:
 
         player_hands = [str(p.hand) if p.hand else "" for p in self.players]
 
-        return GameResult(
+        result = GameResult(
             hand_num=hand_num,
             btn_seat=btn_seat,
             player_hands=player_hands,
@@ -405,3 +410,20 @@ class PokerGame:
             showdown=False,
             hand_strengths=[]
         )
+
+        # 通知所有玩家手牌结束
+        self._notify_hand_complete(result)
+
+        return result
+
+    def _notify_hand_complete(self, result: GameResult) -> None:
+        """
+        通知所有玩家手牌结束
+
+        调用每个玩家的on_hand_complete()回调，让AI玩家可以更新对手建模数据
+
+        Args:
+            result: 手牌结果
+        """
+        for player in self.players:
+            player.on_hand_complete(result)

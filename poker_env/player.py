@@ -4,7 +4,7 @@ Player Interface for Poker Environment
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional
-from advisor.range_engine import Hand, Board
+from poker_core import Hand, Board
 from .utils import ALLIN_THRESHOLD, round_amount, ZERO_THRESHOLD
 
 
@@ -50,6 +50,20 @@ class Player(ABC):
             PlayerAction对象
         """
         pass
+
+    def on_hand_complete(self, game_result: 'GameResult') -> None:
+        """
+        手牌结束时的回调（生命周期钩子）
+
+        当一手牌结束时，poker_env会调用此方法通知玩家。
+        AI玩家可以利用此机会更新对手建模数据。
+
+        默认实现：什么都不做（对于不需要学习的玩家，如RandomPlayer）
+
+        Args:
+            game_result: 手牌结果，包含所有行动、赢家、公共牌等信息
+        """
+        pass  # 默认不做任何事
 
     def reset_for_new_street(self):
         """新街道开始时重置"""

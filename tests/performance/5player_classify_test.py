@@ -164,13 +164,7 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     # 创建游戏
     game = PokerGame(players, config)
 
-    # 重定向输出
-    tee = TeeOutput()
-    old_stdout = sys.stdout
-    if not verbose:
-        sys.stdout = tee
-
-    # 运行游戏
+    # 运行游戏 - 标题信息（不保存到文件）
     print(f"\n{'='*80}")
     print(f"5-Player Classification Test")
     print(f"{'='*80}\n")
@@ -191,7 +185,7 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         for i in range(5):
             player_total_profits[i] += result.player_profits[i]
 
-        # 输出简短信息
+        # 输出简短信息（不受verbose影响）
         btn_player = players[result.btn_seat]
         winner_names = [players[seat].name for seat in result.winner_seats]
         winner_str = ', '.join(winner_names)
@@ -200,8 +194,10 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         # 移动按钮
         btn_seat = (btn_seat + 1) % 5
 
-    # 恢复stdout
-    sys.stdout = old_stdout
+    # 从这里开始捕获统计报告（始终保存到文件）
+    tee = TeeOutput()
+    old_stdout = sys.stdout
+    sys.stdout = tee
 
     # 收集最终统计
     print(f"\n{'='*80}")
@@ -280,7 +276,12 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         print(f"  W$SD: {stats.w_sd:.1%}")
         print(f"  Confidence: {confidence:.1%}\n")
 
-    # 保存结果到文件
+    print(f"{'='*80}\n")
+
+    # 恢复stdout
+    sys.stdout = old_stdout
+
+    # 保存结果到文件（始终保存完整统计报告）
     output_dir = os.path.join(os.path.dirname(__file__), '../../test_results')
     os.makedirs(output_dir, exist_ok=True)
 
@@ -288,15 +289,8 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     output_file = os.path.join(output_dir, f'5player_classify_test_{timestamp}.txt')
 
     with open(output_file, 'w') as f:
-        if not verbose:
-            f.write(tee.get_log())
-        else:
-            # 如果是verbose模式，只写总结
-            f.write(f"5-Player Classification Test - {num_hands} hands\n")
-            f.write(f"Seed: {seed}\n\n")
-            f.write("See console output for detailed statistics\n")
+        f.write(tee.get_log())
 
-    print(f"{'='*80}\n")
     print(f"✅ Output saved to: {output_file}")
 
     return players, all_stats

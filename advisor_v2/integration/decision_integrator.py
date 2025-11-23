@@ -555,8 +555,11 @@ class DecisionIntegrator(IDecisionIntegrator):
                 # 没有对手数据
                 villain_id = 'unknown_opponent'
 
-        # 从tracker获取统计数据
-        villain_stats = self.tracker.get_stats(villain_id)
+        # 从tracker获取统计数据（避免为unknown_opponent创建空记录）
+        if villain_id == 'unknown_opponent':
+            villain_stats = None
+        else:
+            villain_stats = self.tracker.get_stats(villain_id)
 
         # 如果有足够数据，进行分类
         if villain_stats and villain_stats.hands_played >= 20:

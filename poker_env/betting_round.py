@@ -21,6 +21,7 @@ class ActionRecord:
     action: str
     amount: float
     pot_after: float
+    to_call: float = 0.0  # 该玩家行动时需要call的金额
 
 
 class BettingRound:
@@ -181,7 +182,7 @@ class BettingRound:
             if action_type == 'fold':
                 current_player.is_active = False
                 actions.append(ActionRecord(
-                    street.value, current_player.name, current_seat, 'fold', 0, pot
+                    street.value, current_player.name, current_seat, 'fold', 0, pot, to_call
                 ))
                 if self.verbose:
                     print(f"  {current_player.name} folds")
@@ -199,7 +200,7 @@ class BettingRound:
                         print(f"  [Invalid check facing bet {to_call:.2f}BB, folding instead]")
                     current_player.is_active = False
                     actions.append(ActionRecord(
-                        street.value, current_player.name, current_seat, 'fold', 0, pot
+                        street.value, current_player.name, current_seat, 'fold', 0, pot, to_call
                     ))
                     if self.verbose:
                         print(f"  {current_player.name} folds")
@@ -211,7 +212,7 @@ class BettingRound:
                 else:
                     # 没有facing bet，合法check
                     actions.append(ActionRecord(
-                        street.value, current_player.name, current_seat, 'check', 0, pot
+                        street.value, current_player.name, current_seat, 'check', 0, pot, to_call
                     ))
                     if self.verbose:
                         print(f"  {current_player.name} checks")
@@ -226,7 +227,7 @@ class BettingRound:
 
                 action_str = f'call {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                 actions.append(ActionRecord(
-                    street.value, current_player.name, current_seat, action_str, actual_invested, pot
+                    street.value, current_player.name, current_seat, action_str, actual_invested, pot, to_call
                 ))
                 if self.verbose:
                     print(f"  {current_player.name} calls {actual_invested:.2f}BB" +
@@ -249,7 +250,7 @@ class BettingRound:
                     if self.verbose:
                         print(f"  [Bet too small (<{MIN_BET_UNIT:.1f}BB), checking instead]")
                     actions.append(ActionRecord(
-                        street.value, current_player.name, current_seat, 'check', 0, pot
+                        street.value, current_player.name, current_seat, 'check', 0, pot, to_call
                     ))
                     if self.verbose:
                         print(f"  {current_player.name} checks")
@@ -260,7 +261,7 @@ class BettingRound:
 
                     action_str = f'bet {actual_invested:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                     actions.append(ActionRecord(
-                        street.value, current_player.name, current_seat, action_str, actual_invested, pot
+                        street.value, current_player.name, current_seat, action_str, actual_invested, pot, to_call
                     ))
                     if self.verbose:
                         print(f"  {current_player.name} bets {actual_invested:.2f}BB" +
@@ -283,7 +284,7 @@ class BettingRound:
 
                         actions.append(ActionRecord(
                             street.value, current_player.name, current_seat,
-                            f'call {actual_invested:.2f}BB (all-in)', actual_invested, pot
+                            f'call {actual_invested:.2f}BB (all-in)', actual_invested, pot, to_call
                         ))
                         if self.verbose:
                             print(f"  {current_player.name} calls {actual_invested:.2f}BB (all-in), pot={pot:.2f}BB")
@@ -291,7 +292,7 @@ class BettingRound:
                         # Fold
                         current_player.is_active = False
                         actions.append(ActionRecord(
-                            street.value, current_player.name, current_seat, 'fold', 0, pot
+                            street.value, current_player.name, current_seat, 'fold', 0, pot, to_call
                         ))
                         if self.verbose:
                             print(f"  {current_player.name} folds")
@@ -316,7 +317,7 @@ class BettingRound:
 
                             actions.append(ActionRecord(
                                 street.value, current_player.name, current_seat,
-                                f'raise to {raise_to:.2f}BB (all-in)', actual_invested, pot
+                                f'raise to {raise_to:.2f}BB (all-in)', actual_invested, pot, to_call
                             ))
                             if self.verbose:
                                 print(f"  {current_player.name} raises to {raise_to:.2f}BB (all-in), pot={pot:.2f}BB")
@@ -329,7 +330,7 @@ class BettingRound:
 
                             actions.append(ActionRecord(
                                 street.value, current_player.name, current_seat,
-                                f'call {actual_invested:.2f}BB', actual_invested, pot
+                                f'call {actual_invested:.2f}BB', actual_invested, pot, to_call
                             ))
                             if self.verbose:
                                 print(f"  {current_player.name} calls {actual_invested:.2f}BB, pot={pot:.2f}BB")
@@ -341,7 +342,7 @@ class BettingRound:
 
                         action_str = f'raise to {raise_to:.2f}BB' + (' (all-in)' if current_player.is_allin else '')
                         actions.append(ActionRecord(
-                            street.value, current_player.name, current_seat, action_str, actual_invested, pot
+                            street.value, current_player.name, current_seat, action_str, actual_invested, pot, to_call
                         ))
                         if self.verbose:
                             print(f"  {current_player.name} raises to {raise_to:.2f}BB" +

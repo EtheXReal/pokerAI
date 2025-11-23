@@ -38,14 +38,14 @@ def convert_game_result_to_hand_history(game_result: 'GameResult', players: List
     # 转换actions
     actions_data = []
     for action_record in game_result.actions:
-        # ActionRecord包含: street, player_name, player_seat, action, amount, pot_after
+        # ActionRecord包含: street, player_name, player_seat, action, amount, pot_after, to_call
         actions_data.append({
             'street': action_record.street,
             'actor': action_record.player_name,
             'action': action_record.action,
             'amount': action_record.amount,
             'pot_before': action_record.pot_after - action_record.amount,  # 近似
-            'to_call': 0.0,  # 简化：ActionRecord没有记录to_call
+            'to_call': action_record.to_call,  # 使用ActionRecord中实际的to_call值
         })
 
     # 构建winners列表

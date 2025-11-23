@@ -184,24 +184,27 @@ def classify_action(action_str: str) -> ActionType:
     将字符串动作转换为ActionType
 
     Args:
-        action_str: 'fold', 'call', 'r33', 'r66', 'r100', 'allin', etc.
+        action_str: 'fold', 'call', 'call 2.5BB', 'bet 3.0BB', 'raise to 5.0BB', 'allin', etc.
 
     Returns:
         ActionType枚举
     """
     action_lower = action_str.lower()
 
-    if action_lower == 'fold':
+    if action_lower == 'fold' or action_lower.startswith('fold'):
         return ActionType.FOLD
-    elif action_lower == 'check' or action_lower == 'call' and action_str == 'call':
-        # 需要根据上下文判断是check还是call
+    elif action_lower == 'check' or action_lower.startswith('check'):
+        return ActionType.CHECK
+    elif action_lower == 'call' or action_lower.startswith('call'):
         return ActionType.CALL
-    elif action_lower.startswith('r') or action_lower in ['bet', 'raise']:
+    elif action_lower.startswith('bet'):
+        return ActionType.BET
+    elif action_lower.startswith('raise') or action_lower.startswith('r'):
         return ActionType.RAISE
-    elif action_lower == 'allin':
+    elif 'all-in' in action_lower or 'allin' in action_lower:
         return ActionType.ALL_IN
     else:
-        return ActionType.CALL  # 默认
+        return ActionType.CHECK  # 默认
 
 
 def parse_street(street_str: str) -> StreetType:

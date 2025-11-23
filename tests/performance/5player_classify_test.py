@@ -182,8 +182,14 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     print(f"\nRunning {num_hands} hands with seed={seed}...\n")
 
     btn_seat = 0
+    player_total_profits = [0.0] * 5  # 累积每个玩家的总profit
+
     for hand_num in range(num_hands):
         result = game.play_hand(hand_num=hand_num+1, btn_seat=btn_seat, seed=seed+hand_num)
+
+        # 累加profit（使用env提供的数据）
+        for i in range(5):
+            player_total_profits[i] += result.player_profits[i]
 
         # 输出简短信息
         btn_player = players[result.btn_seat]
@@ -211,8 +217,8 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     print(f"{'-'*80}")
 
     total_profit = 0
-    for player in players:
-        profit = player.stack - 200.0
+    for i, player in enumerate(players):
+        profit = player_total_profits[i]  # 使用env累积的profit
         bb_per_100 = (profit / num_hands) * 100
         total_profit += profit
 

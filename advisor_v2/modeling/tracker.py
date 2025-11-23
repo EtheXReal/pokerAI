@@ -119,7 +119,7 @@ class ActionParser:
 
         # 分析翻前行动
         result.position = player_position
-        result.vpip, result.pfr, result.three_bet, result.four_bet = (
+        result.vpip, result.pfr, result.faced_raise, result.three_bet, result.four_bet = (
             ActionParser._analyze_preflop(player_id, preflop_actions)
         )
 
@@ -148,15 +148,16 @@ class ActionParser:
     def _analyze_preflop(
         player_id: str,
         actions: List[Tuple[str, ActionType, float]]
-    ) -> Tuple[bool, bool, bool, bool]:
+    ) -> Tuple[bool, bool, bool, bool, bool]:
         """
         分析翻前行动
 
         Returns:
-            (vpip, pfr, three_bet, four_bet)
+            (vpip, pfr, faced_raise, three_bet, four_bet)
         """
         vpip = False
         pfr = False
+        faced_raise = False
         three_bet = False
         four_bet = False
 
@@ -168,6 +169,10 @@ class ActionParser:
                 raise_count += 1
 
             if actor == player_id:
+                # 检查是否面对raise
+                if raise_count > 0 and not player_raised:
+                    faced_raise = True
+
                 # VPIP: 主动投钱 (不包括BB)
                 if action_type in [ActionType.CALL, ActionType.RAISE, ActionType.BET]:
                     vpip = True
@@ -184,7 +189,7 @@ class ActionParser:
                     elif raise_count == 3:
                         four_bet = True
 
-        return vpip, pfr, three_bet, four_bet
+        return vpip, pfr, faced_raise, three_bet, four_bet
 
     @staticmethod
     def _did_cbet(

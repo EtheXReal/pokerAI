@@ -156,6 +156,7 @@ class HandResult:
 
     # 翻前行动
     saw_flop: bool = False
+    faced_raise: bool = False  # 是否面对了raise（用于计算3-bet机会）
     three_bet: bool = False
     four_bet: bool = False
     fold_to_3bet: bool = False

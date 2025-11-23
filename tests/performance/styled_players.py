@@ -76,14 +76,12 @@ class TAGPlayer(Player):
         """翻后决策 - AF 3.0, C-Bet 75%"""
         rand = random.random()
 
-        # 如果是翻前加注者且是翻牌圈第一次行动
-        is_cbet_spot = (self.was_preflop_raiser and
-                       game_state.street == 'flop' and
-                       game_state.to_call == 0)
+        # C-bet逻辑：翻前加注者在翻牌圈
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
 
         if game_state.to_call == 0:
             # 无需跟注
-            if is_cbet_spot:
+            if is_cbet_situation:
                 # C-bet spot: 75% 下注
                 if rand < 0.75:
                     bet_size = game_state.pot * random.uniform(0.5, 0.75)
@@ -98,8 +96,8 @@ class TAGPlayer(Player):
                 else:
                     return PlayerAction(action='check', amount=0)
         else:
-            # 面对下注: AF 3.0 -> raise/(call+fold)
-            # raise:call:fold = 0.75:0.20:0.05
+            # 面对下注 - C-bet opportunity已失去（别人先下注了）
+            # 按正常策略应对: Fold to C-bet 45%, Call 45%, Raise 10%
             if rand < 0.45:  # Fold to C-bet: 45%
                 return PlayerAction(action='fold', amount=0)
             elif rand < 0.90:  # Call: 45%
@@ -168,12 +166,10 @@ class LAGPlayer(Player):
         """翻后决策 - AF 3.0, C-Bet 65%"""
         rand = random.random()
 
-        is_cbet_spot = (self.was_preflop_raiser and
-                       game_state.street == 'flop' and
-                       game_state.to_call == 0)
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
 
         if game_state.to_call == 0:
-            if is_cbet_spot:
+            if is_cbet_situation:
                 if rand < 0.65:  # C-bet 65%
                     bet_size = game_state.pot * random.uniform(0.5, 0.75)
                     return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
@@ -186,6 +182,8 @@ class LAGPlayer(Player):
                 else:
                     return PlayerAction(action='check', amount=0)
         else:
+            # 面对下注 - C-bet opportunity已失去（别人先下注了）
+            # 按正常策略应对: Fold to C-bet 50%, Call 35%, Raise 15%
             if rand < 0.50:  # Fold to C-bet: 50%
                 return PlayerAction(action='fold', amount=0)
             elif rand < 0.85:  # Call: 35%
@@ -254,12 +252,10 @@ class NitPlayer(Player):
         """翻后决策 - AF 0.7, C-Bet 35%"""
         rand = random.random()
 
-        is_cbet_spot = (self.was_preflop_raiser and
-                       game_state.street == 'flop' and
-                       game_state.to_call == 0)
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
 
         if game_state.to_call == 0:
-            if is_cbet_spot:
+            if is_cbet_situation:
                 if rand < 0.35:  # C-bet 35%
                     bet_size = game_state.pot * random.uniform(0.5, 0.75)
                     return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
@@ -272,6 +268,8 @@ class NitPlayer(Player):
                 else:
                     return PlayerAction(action='check', amount=0)
         else:
+            # 面对下注 - C-bet opportunity已失去（别人先下注了）
+            # 按正常策略应对: Fold to C-bet 75%, Call 22%, Raise 3%
             if rand < 0.75:  # Fold to C-bet: 75%
                 return PlayerAction(action='fold', amount=0)
             elif rand < 0.97:  # Call: 22%
@@ -340,12 +338,10 @@ class FishPlayer(Player):
         """翻后决策 - AF 0.6, C-Bet 25%"""
         rand = random.random()
 
-        is_cbet_spot = (self.was_preflop_raiser and
-                       game_state.street == 'flop' and
-                       game_state.to_call == 0)
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
 
         if game_state.to_call == 0:
-            if is_cbet_spot:
+            if is_cbet_situation:
                 if rand < 0.25:  # C-bet 25%
                     bet_size = game_state.pot * random.uniform(0.5, 0.75)
                     return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
@@ -358,6 +354,8 @@ class FishPlayer(Player):
                 else:
                     return PlayerAction(action='check', amount=0)
         else:
+            # 面对下注 - C-bet opportunity已失去（别人先下注了）
+            # 按正常策略应对: Fold to C-bet 65%, Call 32%, Raise 3%
             if rand < 0.65:  # Fold to C-bet: 65%
                 return PlayerAction(action='fold', amount=0)
             elif rand < 0.97:  # Call: 32%

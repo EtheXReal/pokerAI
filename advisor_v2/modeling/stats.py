@@ -194,9 +194,8 @@ class OpponentStats:
             self._update_pfr(False)
 
         # 更新翻前指标
-        # 简化处理: 每次PFR都算作有3-bet机会
-        # (实际应用中需要更精细的上下文判断)
-        if hand_result.pfr:
+        # 3-bet机会：只有面对raise时才算
+        if hand_result.faced_raise:
             self._three_bet_opportunities += 1
             if hand_result.three_bet:
                 old_total = self.three_bet_pct * (self._three_bet_opportunities - 1)

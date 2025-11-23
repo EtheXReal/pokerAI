@@ -324,8 +324,11 @@ class DecisionIntegrator(IDecisionIntegrator):
 
         board = list(game_state.board)
 
+        # 向后兼容：支持 .hero_hand 和 .hand
+        hero_hand = getattr(game_state, 'hero_hand', None) or getattr(game_state, 'hand', None)
+
         return self.equity_engine.calculate_equity(
-            hand=game_state.hero_hand,
+            hand=hero_hand,
             villain_range=villain_range,
             board=board,
             iterations=iterations
@@ -390,14 +393,20 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 获取对手数据 (Phase 4)
         villain_tendencies = self._get_villain_tendencies(game_state)
 
+        # 向后兼容：支持 poker_env.GameState 和 advisor v1 GameState
+        # poker_env.GameState 使用 .pot 和 .hand
+        # advisor v1 GameState 使用 .pot_size 和 .hero_hand
+        pot_size = getattr(game_state, 'pot_size', None) or getattr(game_state, 'pot', 0.0)
+        hero_hand = getattr(game_state, 'hero_hand', None) or getattr(game_state, 'hand', None)
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
             position=position,
             action_history=action_history,
-            pot_size=game_state.pot_size,
+            pot_size=pot_size,
             effective_stack=game_state.effective_stack,
-            hero_hand=game_state.hero_hand,
+            hero_hand=hero_hand,
             hero_range=hero_range,
             villain_range=villain_range,
             villain_position=villain_position,
@@ -457,7 +466,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             Action list
         """
         action_history = []
-        if game_state.action_history:
+        # 向后兼容：poker_env.GameState 可能没有 action_history 属性
+        if hasattr(game_state, 'action_history') and game_state.action_history:
             for action_str in game_state.action_history:
                 # 简化：只记录action类型
                 if action_str in ['fold', 'call', 'check']:

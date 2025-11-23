@@ -43,47 +43,8 @@ class AdvisorV2Player(Player):
     def decide(self, game_state: GameState) -> PlayerAction:
         """使用advisor_v2做决策"""
         try:
-            # 转换为advisor格式
-            from advisor_v2.core.data_structures import StrategyContext as AdvisorGameState, Position
-            from poker_env.utils import Street
-
-            # 位置映射
-            position_map = {
-                'BTN': Position.BTN,
-                'BTN/SB': Position.BTN,  # 2人游戏
-                'SB': Position.BTN,       # SB在3+人游戏中也算后位
-                'BB': Position.BB,
-                'UTG': Position.UTG,
-                'MP': Position.MP,
-                'CO': Position.CO,
-            }
-            position = position_map.get(game_state.position, Position.MP)
-
-            # 街道映射
-            street_map = {
-                'preflop': Street.PREFLOP,
-                'flop': Street.FLOP,
-                'turn': Street.TURN,
-                'river': Street.RIVER,
-            }
-            street = street_map.get(game_state.street, Street.PREFLOP)
-
-            # 构建advisor game state
-            advisor_game_state = AdvisorGameState(
-                street=game_state.street,
-                position=game_state.position,
-                is_in_position=game_state.is_in_position,
-                hero_hand=game_state.hand,
-                pot_size=game_state.pot,
-                effective_stack=game_state.effective_stack,
-                hero_stack=game_state.hero_stack,
-                board=game_state.board,
-                facing_bet=game_state.facing_bet,
-                bet_to_call=game_state.to_call
-            )
-
-            # 使用integrator做决策
-            decision_trace = self.integrator.decide(advisor_game_state)
+            # DecisionIntegrator现在可以直接接受poker_env.GameState
+            decision_trace = self.integrator.decide(game_state)
 
             # 从DecisionTrace中提取最终决策
             selected_action = decision_trace.selected_action

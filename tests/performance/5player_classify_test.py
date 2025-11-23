@@ -164,7 +164,15 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     # 创建游戏
     game = PokerGame(players, config)
 
-    # 运行游戏 - 标题信息（不保存到文件）
+    # 输出控制：verbose模式下捕获所有输出，非verbose模式只捕获统计报告
+    tee = TeeOutput()
+    old_stdout = sys.stdout
+
+    if verbose:
+        # verbose模式：从头开始捕获所有输出（包括游戏过程）
+        sys.stdout = tee
+
+    # 运行游戏 - 标题信息
     print(f"\n{'='*80}")
     print(f"5-Player Classification Test")
     print(f"{'='*80}\n")
@@ -194,10 +202,9 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         # 移动按钮
         btn_seat = (btn_seat + 1) % 5
 
-    # 从这里开始捕获统计报告（始终保存到文件）
-    tee = TeeOutput()
-    old_stdout = sys.stdout
-    sys.stdout = tee
+    # 非verbose模式：从这里开始捕获统计报告
+    if not verbose:
+        sys.stdout = tee
 
     # 收集最终统计
     print(f"\n{'='*80}")
@@ -226,13 +233,40 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
 
     print(f"\nTotal profit sum: {total_profit:.2f}BB (should be ~0)\n")
 
+    # 获取统计数据
+    all_stats = ai_player.integrator.tracker.get_all_stats()
+
+    # 玩家行为统计表格
+    print(f"{'='*80}")
+    print(f"Player Behavior Statistics")
+    print(f"{'='*80}\n")
+    print(f"{'Player':<10} {'Hands':>6} {'VPIP':>7} {'PFR':>7} {'AF':>6} {'3-Bet':>7} {'C-Bet':>7} {'WTSD':>7} {'W$SD':>7}")
+    print(f"{'-'*80}")
+
+    # 按玩家顺序显示（AI, TAG, LAG, Nit, Fish）
+    player_order = ['AI', 'TAG', 'LAG', 'Nit', 'Fish']
+    for player_name in player_order:
+        if player_name in all_stats:
+            stats = all_stats[player_name]
+            print(f"{player_name:<10} "
+                  f"{stats.hands_played:>6} "
+                  f"{stats.vpip:>6.1%} "
+                  f"{stats.pfr:>6.1%} "
+                  f"{stats.af:>6.2f} "
+                  f"{stats.three_bet_pct:>6.1%} "
+                  f"{stats.cbet_flop:>6.1%} "
+                  f"{stats.wtsd:>6.1%} "
+                  f"{stats.w_sd:>6.1%}")
+        else:
+            # 玩家没有统计数据
+            print(f"{player_name:<10} {'N/A':>6} {'-':>7} {'-':>7} {'-':>6} {'-':>7} {'-':>7} {'-':>7} {'-':>7}")
+
+    print()
+
     # 对手建模报告
     print(f"{'='*80}")
     print(f"Opponent Modeling Analysis")
     print(f"{'='*80}\n")
-
-    # 获取统计数据
-    all_stats = ai_player.integrator.tracker.get_all_stats()
 
     # 预期值
     expected_stats = {

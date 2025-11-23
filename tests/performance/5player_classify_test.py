@@ -213,7 +213,7 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     # 玩家表现
     print(f"Player Performance:")
     print(f"{'-'*80}")
-    print(f"{'Player':<15} {'Profit':>12} {'BB/100':>12} {'Stack':>10}")
+    print(f"{'Player':<15} {'Profit':>12} {'BB/100':>12} {'Final Stack':>15}")
     print(f"{'-'*80}")
 
     total_profit = 0
@@ -222,7 +222,11 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         bb_per_100 = (profit / num_hands) * 100
         total_profit += profit
 
-        print(f"{player.name:<15} {profit:+11.1f}BB {bb_per_100:+11.1f} {player.stack:>9.1f}BB")
+        # 理论最终stack = 初始stack + 累计profit（如果没有重置）
+        # 但由于每手牌都重置，这里只是显示概念上的"如果保留所有收益"的stack
+        theoretical_final = config.starting_stack + profit
+
+        print(f"{player.name:<15} {profit:+11.1f}BB {bb_per_100:+11.1f} {theoretical_final:>14.1f}BB")
 
     print(f"\nTotal profit sum: {total_profit:.2f}BB (should be ~0)\n")
 

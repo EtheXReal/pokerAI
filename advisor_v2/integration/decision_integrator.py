@@ -67,10 +67,11 @@ class DecisionIntegrator(IDecisionIntegrator):
         self.strategy = strategy
         self.tracer = tracer
 
-        # 如果没有提供strategy，使用默认GTOStrategy
+        # 如果没有提供strategy，使用默认HybridStrategy
+        # HybridStrategy = GTO基准 + 对手建模Exploit调整
         if self.strategy is None:
-            from advisor_v2.strategy.gto_strategy import GTOStrategy
-            self.strategy = GTOStrategy()
+            from advisor_v2.strategy.hybrid_strategy import HybridStrategy
+            self.strategy = HybridStrategy()
 
         # 将tracer传递给strategy
         if self.strategy and hasattr(self.strategy, 'set_tracer') and self.tracer:
@@ -533,7 +534,26 @@ class DecisionIntegrator(IDecisionIntegrator):
             Dict包含对手统计和类型
         """
         # 获取对手ID（如果game_state有提供）
-        villain_id = getattr(game_state, 'opponent_id', 'unknown_opponent')
+        villain_id = getattr(game_state, 'opponent_id', None)
+
+        # 如果没有直接提供opponent_id，尝试智能识别
+        if not villain_id:
+            # 获取当前玩家名字
+            hero_name = game_state.player.name if hasattr(game_state, 'player') and hasattr(game_state.player, 'name') else None
+
+            # 从tracker中找到除了hero之外的对手
+            all_stats = self.tracker.get_all_stats()
+            villain_candidates = [pid for pid in all_stats.keys() if pid != hero_name]
+
+            # 如果只有一个对手（HU），使用它
+            if len(villain_candidates) == 1:
+                villain_id = villain_candidates[0]
+            elif len(villain_candidates) > 1:
+                # 多个对手：使用手牌数最多的（最有统计意义）
+                villain_id = max(villain_candidates, key=lambda pid: all_stats[pid].hands_played)
+            else:
+                # 没有对手数据
+                villain_id = 'unknown_opponent'
 
         # 从tracker获取统计数据
         villain_stats = self.tracker.get_stats(villain_id)

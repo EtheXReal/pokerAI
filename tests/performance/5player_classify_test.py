@@ -236,10 +236,10 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
 
     # 预期值
     expected_stats = {
-        'TAG': {'vpip': 0.22, 'pfr': 0.18, 'af': 3.0, 'cbet': 0.75, 'player_type': 'TAG'},
-        'LAG': {'vpip': 0.40, 'pfr': 0.28, 'af': 3.0, 'cbet': 0.65, 'player_type': 'LAG'},
-        'Nit': {'vpip': 0.18, 'pfr': 0.06, 'af': 0.7, 'cbet': 0.35, 'player_type': 'Nit'},
-        'Fish': {'vpip': 0.58, 'pfr': 0.14, 'af': 0.6, 'cbet': 0.25, 'player_type': 'Fish'},
+        'TAG': {'vpip': 0.22, 'pfr': 0.18, 'af': 3.0, 'three_bet': 0.063, 'cbet': 0.75, 'player_type': 'TAG'},
+        'LAG': {'vpip': 0.40, 'pfr': 0.28, 'af': 3.0, 'three_bet': 0.102, 'cbet': 0.65, 'player_type': 'LAG'},
+        'Nit': {'vpip': 0.18, 'pfr': 0.06, 'af': 0.7, 'three_bet': 0.021, 'cbet': 0.35, 'player_type': 'Nit'},
+        'Fish': {'vpip': 0.58, 'pfr': 0.14, 'af': 0.6, 'three_bet': 0.050, 'cbet': 0.25, 'player_type': 'Fish'},
     }
 
     for player_id, stats in sorted(all_stats.items()):
@@ -269,8 +269,8 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
         print(show_stat("VPIP", stats.vpip, expected.get('vpip', 0)))
         print(show_stat("PFR", stats.pfr, expected.get('pfr', 0)))
         print(f"  Aggression Factor: {stats.af:.2f} (expected {expected.get('af', 0):.2f})")
-        print(show_stat("3-Bet", stats.three_bet_pct, expected.get('pfr', 0) * 0.3, tolerance=0.15))  # 粗略估计
-        print(show_stat("C-Bet Flop", stats.cbet_flop, expected.get('cbet', 0), tolerance=0.15))
+        print(show_stat("3-Bet", stats.three_bet_pct, expected.get('three_bet', 0.05), tolerance=0.05))  # 使用实际期望值
+        print(show_stat("C-Bet Flop", stats.cbet_flop, expected.get('cbet', 0), tolerance=0.20))  # 放宽C-bet容差（受位置影响）
         print(f"  Fold to C-Bet Flop: {stats.fold_to_cbet_flop:.1%}")
         print(f"  WTSD: {stats.wtsd:.1%}")
         print(f"  W$SD: {stats.w_sd:.1%}")

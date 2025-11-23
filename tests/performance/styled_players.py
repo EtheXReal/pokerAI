@@ -42,8 +42,11 @@ class TAGPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 22%, PFR 18%"""
+        """翻前决策 - VPIP 22%, PFR 18%, 3-bet ~6%"""
         rand = random.random()
+
+        # 区分：面对BB vs 面对raise
+        facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
 
         if game_state.to_call == 0:
             # 无需跟注 (盲注位或所有人都弃牌)
@@ -58,16 +61,30 @@ class TAGPlayer(Player):
                     return PlayerAction(action='check', amount=0)
             else:
                 return PlayerAction(action='check', amount=0)
-        else:
-            # 面对下注
+        elif not facing_raise:
+            # 面对BB但没有raise（可以open raise）
             if rand < 0.22:  # VPIP 22%
                 if random.random() < 0.82:  # PFR/VPIP = 82%
+                    # Open raise
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    # Limp (call BB)
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise（真正的3-bet决策）
+            # TAG面对raise时收紧：只用~7%最强牌，其中90%是3-bet
+            if rand < 0.07:  # 面对raise时的范围
+                if random.random() < 0.90:  # 90% 3-bet, 10% call
                     # 3-bet
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
-                    # Call
+                    # Call (用于平衡)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)
@@ -138,8 +155,11 @@ class LAGPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 40%, PFR 28%"""
+        """翻前决策 - VPIP 40%, PFR 28%, 3-bet ~10%"""
         rand = random.random()
+
+        # 区分：面对BB vs 面对raise
+        facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
 
         if game_state.to_call == 0:
             if rand < 0.40:  # VPIP 40%
@@ -151,13 +171,30 @@ class LAGPlayer(Player):
                     return PlayerAction(action='check', amount=0)
             else:
                 return PlayerAction(action='check', amount=0)
-        else:
+        elif not facing_raise:
+            # 面对BB但没有raise（可以open raise）
             if rand < 0.40:  # VPIP 40%
                 if random.random() < 0.70:  # PFR/VPIP = 70%
+                    # Open raise
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
+                    # Limp (call BB)
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise（真正的3-bet决策）
+            # LAG面对raise时：用~12%牌，其中85%是3-bet
+            if rand < 0.12:  # 面对raise时的范围
+                if random.random() < 0.85:  # 85% 3-bet, 15% call
+                    # 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    # Call (用于平衡)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)
@@ -224,8 +261,11 @@ class NitPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 18%, PFR 6%"""
+        """翻前决策 - VPIP 18%, PFR 6%, 3-bet ~2%"""
         rand = random.random()
+
+        # 区分：面对BB vs 面对raise
+        facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
 
         if game_state.to_call == 0:
             if rand < 0.18:  # VPIP 18%
@@ -237,13 +277,30 @@ class NitPlayer(Player):
                     return PlayerAction(action='check', amount=0)
             else:
                 return PlayerAction(action='check', amount=0)
-        else:
+        elif not facing_raise:
+            # 面对BB但没有raise（可以open raise）
             if rand < 0.18:  # VPIP 18%
                 if random.random() < 0.33:  # PFR/VPIP = 33%
+                    # Open raise
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.0)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
+                    # Limp (call BB)
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise（真正的3-bet决策）
+            # Nit面对raise时非常紧：只用~3%最强牌，其中70%是3-bet
+            if rand < 0.03:  # 面对raise时的范围
+                if random.random() < 0.70:  # 70% 3-bet, 30% call
+                    # 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.5, 3.0)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    # Call (用于平衡)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)
@@ -310,8 +367,11 @@ class FishPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 58%, PFR 14%"""
+        """翻前决策 - VPIP 58%, PFR 14%, 3-bet ~5%"""
         rand = random.random()
+
+        # 区分：面对BB vs 面对raise
+        facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
 
         if game_state.to_call == 0:
             if rand < 0.58:  # VPIP 58%
@@ -323,13 +383,30 @@ class FishPlayer(Player):
                     return PlayerAction(action='check', amount=0)
             else:
                 return PlayerAction(action='check', amount=0)
-        else:
+        elif not facing_raise:
+            # 面对BB但没有raise（可以open raise）
             if rand < 0.58:  # VPIP 58%
                 if random.random() < 0.24:  # PFR/VPIP = 24%
+                    # Open raise
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.0, 3.0)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
+                    # Limp (call BB)
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise（真正的3-bet决策）
+            # Fish面对raise时：用~10%牌（太宽），其中50%是3-bet（被动）
+            if rand < 0.10:  # 面对raise时的范围
+                if random.random() < 0.50:  # 50% 3-bet, 50% call（Fish很被动）
+                    # 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.0, 3.0)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    # Call (Fish喜欢call)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)

@@ -93,6 +93,11 @@ class AdvisorV2Player(Player):
                 return PlayerAction(action='check', amount=0)
 
         except Exception as e:
+            # Print the error!
+            print(f"AI Error: {e}")
+            import traceback
+            traceback.print_exc()
+            
             # 出错时fallback到简单策略
             if game_state.to_call > 0:
                 # 50% fold, 50% call

@@ -56,7 +56,7 @@ class HybridStrategy(IStrategy):
         # Confidence阈值
         self.confidence_low = self.config.get('confidence_threshold_low', 0.3)
         self.confidence_high = self.config.get('confidence_threshold_high', 0.7)
-        self.max_exploit_weight = self.config.get('max_exploit_weight', 0.7)
+        self.max_exploit_weight = self.config.get('max_exploit_weight', 1.0)
         self.enable_exploit = self.config.get('enable_exploit', True)
 
         # 初始化GTO策略和Exploit库
@@ -288,7 +288,7 @@ class HybridStrategy(IStrategy):
         # 构建新的决策
         blended_decision = StrategyDecision(
             action_distribution=adjusted_actions,
-            sizing_distribution=gto_decision.sizing_distribution,  # 保持GTO sizing
+            sizing_distribution=self._apply_exploit_sizing(gto_decision.sizing_distribution, exploit_advice, alpha, ctx),
             reasoning=f"Hybrid: {gto_decision.reasoning} + Exploit vs {player_type.value} (α={alpha:.2f}): {exploit_advice.action}",
             confidence=gto_decision.confidence * (1 - alpha * 0.3),  # Exploit增加不确定性
             key_factors={
@@ -313,21 +313,6 @@ class HybridStrategy(IStrategy):
     ) -> Dict[str, float]:
         """
         应用exploit建议调整action分布
-
-        根据建议的action和frequency调整GTO频率：
-        - "频繁偷盲" → 增加raise频率
-        - "紧缩防守" → 增加fold频率
-        - "激进3-bet" → 增加raise频率
-        - "被动跟注" → 增加call频率
-
-        Args:
-            gto_actions: GTO action分布
-            exploit_advice: Exploit建议
-            alpha: Exploit权重
-            ctx: StrategyContext
-
-        Returns:
-            调整后的action分布
         """
         adjusted = gto_actions.copy()
 
@@ -389,7 +374,7 @@ class HybridStrategy(IStrategy):
             primary_action = 'bet' if 'bet' in adjusted else 'raise'
             if primary_action in adjusted:
                 gto_freq = adjusted.get(primary_action, 0.0)
-                new_freq = gto_freq + alpha * (0.8 - gto_freq)
+                new_freq = gto_freq + alpha * (0.99 - gto_freq)
 
                 delta = new_freq - adjusted.get(primary_action, 0.0)
                 adjusted[primary_action] = new_freq
@@ -402,13 +387,121 @@ class HybridStrategy(IStrategy):
 
         return adjusted
 
+    def _apply_exploit_sizing(
+        self,
+        gto_sizing: Dict[float, float],
+        exploit_advice: 'StrategyAdvice',
+        alpha: float,
+        ctx: StrategyContext
+    ) -> Dict[float, float]:
+        """
+        应用exploit sizing建议
+        """
+        if not exploit_advice.sizing or alpha < 0.1:
+            return gto_sizing
+
+        # 解析sizing建议
+        target_sizings = self._parse_sizing(exploit_advice.sizing, ctx)
+        
+        if not target_sizings:
+            return gto_sizing
+
+        # 如果alpha很高，完全使用exploit sizing
+        if alpha >= 0.8:
+            return target_sizings
+            
+        # 否则混合 (简单混合：将exploit sizing加入分布)
+        mixed_sizing = gto_sizing.copy()
+        
+        # 归一化GTO
+        total_gto = sum(mixed_sizing.values())
+        if total_gto > 0:
+            mixed_sizing = {k: v * (1 - alpha) for k, v in mixed_sizing.items()}
+            
+        # 加入Exploit
+        for size, prob in target_sizings.items():
+            mixed_sizing[size] = mixed_sizing.get(size, 0.0) + prob * alpha
+            
+        # 重新归一化
+        total = sum(mixed_sizing.values())
+        if total > 0:
+            return {k: v/total for k, v in mixed_sizing.items()}
+            
+        return target_sizings
+
+    def _parse_sizing(self, sizing_str: str, ctx: StrategyContext) -> Dict[float, float]:
+        """
+        解析sizing字符串为 {pot_fraction: probability}
+        支持格式:
+        - "75-150% pot"
+        - "2.5-3BB"
+        - "Min-raise"
+        """
+        import re
+        
+        sizing_str = sizing_str.lower()
+        result = {}
+        
+        # 1. 处理 "% pot"
+        if 'pot' in sizing_str:
+            # 提取百分比范围
+            matches = re.findall(r'(\d+(?:\.\d+)?)\s*[-to]*\s*(\d+(?:\.\d+)?)?\s*%', sizing_str)
+            if matches:
+                min_pct = float(matches[0][0])
+                max_pct = float(matches[0][1]) if matches[0][1] else min_pct
+                
+                # 转换为fraction
+                min_frac = min_pct / 100.0
+                max_frac = max_pct / 100.0
+                
+                if min_frac == max_frac:
+                    result[min_frac] = 1.0
+                else:
+                    # 简单的分布：min, max, avg
+                    avg = (min_frac + max_frac) / 2
+                    result[min_frac] = 0.2
+                    result[max_frac] = 0.2
+                    result[avg] = 0.6
+                    
+                return result
+                
+        # 2. 处理 "BB"
+        if 'bb' in sizing_str:
+            matches = re.findall(r'(\d+(?:\.\d+)?)\s*[-to]*\s*(\d+(?:\.\d+)?)?\s*bb', sizing_str)
+            if matches:
+                min_bb = float(matches[0][0])
+                max_bb = float(matches[0][1]) if matches[0][1] else min_bb
+                
+                # 转换为pot fraction
+                pot_bb = ctx.pot_size if ctx.pot_size > 0 else 1.0
+                
+                min_frac = min_bb / pot_bb
+                max_frac = max_bb / pot_bb
+                
+                avg = (min_frac + max_frac) / 2
+                result[avg] = 1.0
+                return result
+
+        # 3. 关键词处理
+        if 'min-raise' in sizing_str or 'min raise' in sizing_str:
+            # 假设min raise是2BB或者最小加注额
+            # 这里简化为很小的pot fraction
+            result[0.3] = 1.0 # 假设通常min raise比较小
+            return result
+            
+        if 'overbet' in sizing_str:
+            result[1.5] = 1.0
+            return result
+            
+        return {}
+
     def _parse_frequency(self, frequency_str: str) -> float:
         """
         解析频率字符串
-
+        
         Args:
             frequency_str: "80%+", "50-70%", "rarely"等
-
+            
         Returns:
             频率值 (0-1)
         """

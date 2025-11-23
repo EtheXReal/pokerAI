@@ -288,7 +288,7 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     output_file = os.path.join(output_dir, f'5player_classify_test_{timestamp}.txt')
 
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write(tee.get_log())
 
     print(f"✅ Output saved to: {output_file}")

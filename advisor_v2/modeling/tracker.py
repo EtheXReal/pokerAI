@@ -133,6 +133,12 @@ class ActionParser:
                     player_id, flop_actions
                 )
 
+            # Fold to C-bet分析: 面对翻前加注者的翻牌圈下注
+            if preflop_raiser and preflop_raiser != player_id:
+                result.fold_to_cbet = ActionParser._did_fold_to_cbet(
+                    player_id, preflop_raiser, flop_actions
+                )
+
         # 摊牌分析 (需要从外部传入)
         # result.went_to_showdown 和 won_at_showdown 需要由调用者填充
 
@@ -199,6 +205,49 @@ class ActionParser:
                 # 其他行动 (call/fold) 意味着已经有人下注了
                 break
         return False
+
+    @staticmethod
+    def _did_fold_to_cbet(
+        player_id: str,
+        preflop_raiser: str,
+        actions: List[Tuple[str, ActionType, float]]
+    ) -> Optional[bool]:
+        """
+        判断玩家是否面对C-bet并fold
+
+        Args:
+            player_id: 目标玩家ID
+            preflop_raiser: 翻前加注者ID
+            actions: 翻牌圈行动序列
+
+        Returns:
+            True: 面对C-bet并fold
+            False: 面对C-bet但没有fold（call或raise）
+            None: 没有面对C-bet的机会
+        """
+        # 首先检查翻前加注者是否C-bet
+        cbet_happened = False
+        player_acted_after_cbet = False
+
+        for actor, action_type, amount in actions:
+            # 检查是否是翻前加注者的C-bet
+            if actor == preflop_raiser and action_type in [ActionType.BET, ActionType.RAISE]:
+                cbet_happened = True
+                continue
+
+            # 如果C-bet已经发生，检查玩家的响应
+            if cbet_happened and actor == player_id:
+                player_acted_after_cbet = True
+                # 玩家面对C-bet的行动
+                if action_type == ActionType.FOLD:
+                    return True  # Fold to C-bet
+                elif action_type in [ActionType.CALL, ActionType.RAISE]:
+                    return False  # 没有fold
+                # 如果是check，说明不是面对C-bet（可能是后位）
+                break
+
+        # 如果没有C-bet发生，或玩家没有机会响应，返回None
+        return None
 
 
 class StatsTracker:

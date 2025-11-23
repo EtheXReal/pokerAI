@@ -9,6 +9,7 @@
 import sys
 import os
 import datetime
+from typing import List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from poker_env import PokerGame, GameConfig, Player, PlayerAction, GameState
@@ -17,6 +18,7 @@ from advisor_v2.analysis.equity_engine import EquityEngine
 from advisor_v2.analysis.board_analyzer import BoardAnalyzer
 from advisor_v2.strategy.gto_strategy import GTOStrategy
 from advisor_v2.integration.decision_integrator import DecisionIntegrator
+from advisor_v2.integration.utils import convert_game_result_to_hand_history, print_opponent_stats_report
 import random
 import argparse
 
@@ -24,7 +26,7 @@ import argparse
 class AdvisorV2Player(Player):
     """使用AdvisorV2的AI玩家"""
 
-    def __init__(self, name: str, seat: int, stack: float):
+    def __init__(self, name: str, seat: int, stack: float, all_players: List[Player] = None):
         super().__init__(name, seat, stack)
 
         # 初始化advisor_v2组件
@@ -39,6 +41,9 @@ class AdvisorV2Player(Player):
             board_analyzer=self.board_analyzer,
             strategy=self.gto_strategy
         )
+
+        # 保存所有玩家引用（用于hand_history转换）
+        self.all_players = all_players or []
 
     def decide(self, game_state: GameState) -> PlayerAction:
         """使用advisor_v2做决策"""
@@ -93,6 +98,23 @@ class AdvisorV2Player(Player):
             else:
                 return PlayerAction(action='check', amount=0)
 
+    def on_hand_complete(self, game_result) -> None:
+        """
+        手牌结束回调 - 更新对手建模数据
+
+        当一手牌结束时，poker_env会调用此方法。
+        我们将GameResult转换为tracker可以理解的格式，然后更新对手统计。
+        """
+        try:
+            # 转换GameResult为hand_history格式
+            hand_history = convert_game_result_to_hand_history(game_result, self.all_players)
+
+            # 更新tracker
+            self.integrator.tracker.update_from_hand(hand_history)
+        except Exception as e:
+            # 静默失败，不影响游戏
+            pass
+
 
 class RandomPlayer(Player):
     """随机策略玩家"""
@@ -142,11 +164,16 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     """运行3人游戏测试（不同筹码量）"""
 
     # 创建玩家（不同初始筹码）
+    # 先创建列表，然后让AI玩家获取引用
     players = [
-        AdvisorV2Player("AI", 0, 100.0),         # 100BB
+        None,  # AI - 稍后创建
         RandomPlayer("Random_1", 1, 80.0),       # 80BB
         RandomPlayer("Random_2", 2, 150.0),      # 150BB
     ]
+
+    # 创建AI玩家，传入所有玩家引用
+    ai_player = AdvisorV2Player("AI", 0, 100.0, all_players=players)
+    players[0] = ai_player
 
     config = GameConfig(
         num_players=3,
@@ -239,6 +266,10 @@ def run_test(num_hands: int, seed: int, verbose: bool = False):
     else:
         print(f"✗ AI Player lost {abs(ai_profit):.1f}BB")
     print("=" * 80)
+
+    # 打印对手建模报告
+    opponent_names = ["Random_1", "Random_2"]
+    print_opponent_stats_report(ai_player.integrator.tracker, opponent_names)
 
 
 def main():

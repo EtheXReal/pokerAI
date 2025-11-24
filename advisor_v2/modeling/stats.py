@@ -233,6 +233,7 @@ class OpponentStats:
             self._update_fold_to_cbet(hand_result.fold_to_cbet)
 
         # 更新摊牌统计
+        # BUG FIX: 每手牌都需要检查，不仅仅是看到翻牌的手牌
         if hand_result.saw_flop:
             self._saw_flop_count += 1
             if hand_result.went_to_showdown:
@@ -240,11 +241,13 @@ class OpponentStats:
                 if hand_result.won_at_showdown:
                     self._won_showdown_count += 1
 
-            # 每次看到翻牌都更新WTSD
+        # 只要有看过翻牌的历史数据，就更新WTSD和W$SD
+        # 这样即使当前手牌翻前fold，也会基于最新的总计数更新比例
+        if self._saw_flop_count > 0:
             self.wtsd = self._showdown_count / self._saw_flop_count
-            # 每次摊牌都更新W$SD
-            if self._showdown_count > 0:
-                self.w_sd = self._won_showdown_count / self._showdown_count
+
+        if self._showdown_count > 0:
+            self.w_sd = self._won_showdown_count / self._showdown_count
 
         # 更新激进度
         self._update_aggression_from_actions(hand_result.actions)
@@ -340,6 +343,8 @@ class OpponentStats:
         从行动列表更新激进度
 
         AF = (bet + raise) / call
+
+        注意：包括所有街道的行动（翻前+翻后）
         """
         from .models import ActionType
 
@@ -353,6 +358,7 @@ class OpponentStats:
         if self._passive_actions > 0:
             self.af = self._aggressive_actions / self._passive_actions
         else:
+            # 如果从不call，AF等于激进行动次数
             self.af = float(self._aggressive_actions) if self._aggressive_actions > 0 else 0.0
 
     # ========== 辅助方法 ==========

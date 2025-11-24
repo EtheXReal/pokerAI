@@ -1,22 +1,18 @@
 """
-HybridStrategy - GTO基准 + Exploit调整
+HybridStrategy - GTO基准 + Exploit调整（重构版本）
 
-这是advisor_v2的关键改进：根据对手建模数据动态调整GTO策略。
+核心改进：
+- 使用exploits.py的类型安全handler系统
+- 消除关键词匹配，直接调用apply_exploit_adjustment()
+- 更清晰的代码结构，更容易测试
 
 核心思想：
 - Low confidence (< 0.3): 纯GTO，避免误判风险
 - Medium confidence (0.3-0.7): 平滑混合GTO + Exploit
-- High confidence (>= 0.7): 70% Exploit + 30% GTO基底
-
-设计原则：
-1. 单一职责：GTOStrategy保持纯粹，HybridStrategy负责混合
-2. 风险可控：confidence低时退化为GTO
-3. 充分利用：exploits.py的StrategyLibrary直接使用
-4. 符合理论：对未知对手用GTO，对已知对手加入exploit
+- High confidence (>= 0.7): 高权重Exploit调整
 """
 
 from typing import Dict, Optional
-import random
 
 from advisor_v2.core.interfaces.strategy_interface import IStrategy
 from advisor_v2.core.data_structures import (
@@ -24,20 +20,25 @@ from advisor_v2.core.data_structures import (
     StrategyDecision,
 )
 from advisor_v2.strategy.gto_strategy import GTOStrategy
-from advisor_v2.modeling.exploits import StrategyLibrary, ActionContext
+from advisor_v2.modeling.exploits import (
+    StrategyLibrary,
+    ActionContext,
+    apply_exploit_adjustment,
+)
 from advisor_v2.modeling.models import PlayerType
 
 
 class HybridStrategy(IStrategy):
     """
-    混合策略：GTO基准 + Exploit调整
+    混合策略：GTO基准 + Exploit调整（重构版本）
 
     决策流程：
-    1. 获取villain_tendencies (player_type, confidence)
-    2. 计算GTO基准决策
-    3. 根据confidence决定exploit权重
-    4. 获取针对该玩家类型的exploit建议
-    5. 混合GTO和Exploit生成最终决策
+    1. 获取GTO基准决策
+    2. 检查对手建模数据（player_type, confidence）
+    3. 计算exploit权重（alpha）
+    4. 获取exploit建议
+    5. 调用handler应用调整
+    6. 返回混合决策
     """
 
     def __init__(self, config: Optional[Dict] = None):
@@ -48,7 +49,7 @@ class HybridStrategy(IStrategy):
             config: 策略配置
                 - confidence_threshold_low: 纯GTO阈值（默认0.3）
                 - confidence_threshold_high: 高exploit阈值（默认0.7）
-                - max_exploit_weight: 最大exploit权重（默认0.7）
+                - max_exploit_weight: 最大exploit权重（默认1.0）
                 - enable_exploit: 是否启用exploit（默认True）
         """
         self.config = config or {}
@@ -95,7 +96,7 @@ class HybridStrategy(IStrategy):
         player_type_str = villain_tendencies.get('player_type', 'UNKNOWN')
         confidence = villain_tendencies.get('confidence', 0.0)
 
-        # DEBUG: 打印对手建模数据
+        # DEBUG
         import os
         if os.environ.get('DEBUG_HYBRID') == '1':
             print(f"[HybridStrategy] player_type={player_type_str}, confidence={confidence:.2f}")
@@ -124,13 +125,11 @@ class HybridStrategy(IStrategy):
             player_type = PlayerType[player_type_str.upper()] if player_type_str != 'UNKNOWN' else PlayerType.UNKNOWN
         except (KeyError, AttributeError):
             player_type = PlayerType.UNKNOWN
-            import os
             if os.environ.get('DEBUG_HYBRID') == '1':
                 print(f"[HybridStrategy] Failed to parse player_type: {player_type_str}")
 
-        # 如果player_type是UNKNOWN，也用纯GTO
+        # 如果player_type是UNKNOWN，用纯GTO
         if player_type == PlayerType.UNKNOWN:
-            import os
             if os.environ.get('DEBUG_HYBRID') == '1':
                 print(f"[HybridStrategy] player_type is UNKNOWN, using pure GTO")
             return gto_decision
@@ -138,22 +137,22 @@ class HybridStrategy(IStrategy):
         # 6. 计算exploit权重
         alpha = self._calculate_blend_factor(confidence)
 
-        # 7. 获取exploit建议
+        # 7. 获取情境类型
         context_type = self._get_context_type(ctx)
+
+        # 8. 获取exploit建议
         exploit_advice = self.exploit_library.get_advice(player_type, context_type)
 
-        import os
         if os.environ.get('DEBUG_HYBRID') == '1':
-            print(f"[HybridStrategy] alpha={alpha:.2f}, context={context_type}, advice={exploit_advice.action if exploit_advice else None}")
+            print(f"[HybridStrategy] alpha={alpha:.2f}, context={context_type}, advice={exploit_advice.action_type if exploit_advice else None}")
 
-        # 8. 混合GTO + Exploit
+        # 9. 应用exploit调整
         if exploit_advice:
             blended_decision = self._blend_decisions(
                 gto_decision,
                 exploit_advice,
                 alpha,
-                ctx,
-                player_type
+                ctx
             )
 
             # Trace
@@ -168,10 +167,11 @@ class HybridStrategy(IStrategy):
                         "confidence": confidence,
                         "blend_mode": "hybrid",
                         "alpha": alpha,
-                        "context": context_type
+                        "context": context_type.value,
+                        "exploit_action_type": exploit_advice.action_type.name,
                     },
                     outputs={"action_dist": blended_decision.action_distribution},
-                    reasoning=f"Confidence {confidence:.2f} → α={alpha:.2f} blending (vs {player_type_str} in {context_type})"
+                    reasoning=f"Confidence {confidence:.2f} → α={alpha:.2f} blending (vs {player_type_str}, {exploit_advice.action_type.name})"
                 )
 
             return blended_decision
@@ -185,8 +185,8 @@ class HybridStrategy(IStrategy):
 
         线性插值：
         - confidence < 0.3: alpha = 0.0 (纯GTO)
-        - confidence = 0.5: alpha = 0.35 (50% → 35% exploit)
-        - confidence >= 0.7: alpha = 0.7 (最大exploit)
+        - confidence = 0.5: alpha = 0.35
+        - confidence >= 0.7: alpha = max_exploit_weight
 
         Args:
             confidence: 对手建模置信度 (0-1)
@@ -199,7 +199,7 @@ class HybridStrategy(IStrategy):
         elif confidence >= self.confidence_high:
             return self.max_exploit_weight
         else:
-            # 线性插值: [0.3, 0.7] → [0.0, 0.7]
+            # 线性插值: [0.3, 0.7] → [0.0, max_exploit_weight]
             normalized = (confidence - self.confidence_low) / (self.confidence_high - self.confidence_low)
             return normalized * self.max_exploit_weight
 
@@ -225,9 +225,7 @@ class HybridStrategy(IStrategy):
                 else:
                     return ActionContext.STEAL_ATTEMPT  # 默认用steal
             else:
-                # Facing raise
-                # 判断是否3-bet情况（需要检查action history）
-                # 简化：有人raise时就算3-bet决策
+                # Facing raise（简化：有人raise时就算3-bet决策）
                 return ActionContext.THREE_BET
 
         # 翻后
@@ -246,25 +244,20 @@ class HybridStrategy(IStrategy):
     def _blend_decisions(
         self,
         gto_decision: StrategyDecision,
-        exploit_advice: 'StrategyAdvice',
+        exploit_advice: any,
         alpha: float,
-        ctx: StrategyContext,
-        player_type: PlayerType
+        ctx: StrategyContext
     ) -> StrategyDecision:
         """
-        混合GTO决策和Exploit建议
+        混合GTO决策和Exploit建议（重构版本）
 
-        混合策略：
-        1. 解析exploit建议（如"频繁偷盲 80%+"）
-        2. 调整GTO的action distribution
-        3. 保持sizing distribution（exploit主要影响频率）
+        核心改进：直接调用apply_exploit_adjustment()，无需关键词匹配
 
         Args:
             gto_decision: GTO基准决策
-            exploit_advice: Exploit建议
+            exploit_advice: Exploit建议（StrategyAdvice）
             alpha: Exploit权重 (0-1)
             ctx: StrategyContext
-            player_type: 对手类型
 
         Returns:
             混合后的StrategyDecision
@@ -272,31 +265,34 @@ class HybridStrategy(IStrategy):
         # 获取GTO的action分布
         gto_actions = gto_decision.action_distribution.copy()
 
-        # 根据exploit建议调整action分布
-        adjusted_actions = self._apply_exploit_advice(
-            gto_actions,
+        # 调用exploits.py的handler系统
+        adjusted_actions = apply_exploit_adjustment(
+            gto_actions=gto_actions,
+            advice=exploit_advice,
+            alpha=alpha,
+            ctx=ctx
+        )
+
+        # 应用exploit sizing（如果有）
+        adjusted_sizing = self._apply_exploit_sizing(
+            gto_decision.sizing_distribution,
             exploit_advice,
             alpha,
             ctx
         )
 
-        # 归一化
-        total = sum(adjusted_actions.values())
-        if total > 0:
-            adjusted_actions = {k: v/total for k, v in adjusted_actions.items()}
-
         # 构建新的决策
         blended_decision = StrategyDecision(
             action_distribution=adjusted_actions,
-            sizing_distribution=self._apply_exploit_sizing(gto_decision.sizing_distribution, exploit_advice, alpha, ctx),
-            reasoning=f"Hybrid: {gto_decision.reasoning} + Exploit vs {player_type.value} (α={alpha:.2f}): {exploit_advice.action}",
+            sizing_distribution=adjusted_sizing,
+            reasoning=f"Hybrid: {gto_decision.reasoning} + Exploit (α={alpha:.2f}): {exploit_advice.reason}",
             confidence=gto_decision.confidence * (1 - alpha * 0.3),  # Exploit增加不确定性
             key_factors={
                 **gto_decision.key_factors,
                 'strategy': 'HybridStrategy',
                 'exploit_alpha': alpha,
-                'player_type': player_type.value,
-                'exploit_advice': exploit_advice.action,
+                'exploit_action_type': exploit_advice.action_type.name,
+                'exploit_reason': exploit_advice.reason,
                 'gto_actions': gto_actions,
                 'adjusted_actions': adjusted_actions,
             }
@@ -304,233 +300,53 @@ class HybridStrategy(IStrategy):
 
         return blended_decision
 
-    def _apply_exploit_advice(
-        self,
-        gto_actions: Dict[str, float],
-        exploit_advice: 'StrategyAdvice',
-        alpha: float,
-        ctx: StrategyContext
-    ) -> Dict[str, float]:
-        """
-        应用exploit建议调整action分布
-        """
-        adjusted = gto_actions.copy()
-
-        # 解析建议的频率（如"80%+"）
-        target_frequency = self._parse_frequency(exploit_advice.frequency)
-
-        # 根据建议的action类型调整
-        action_keyword = exploit_advice.action.lower()
-
-        # 偷盲/激进raise
-        if '偷盲' in action_keyword or '激进' in action_keyword or 'raise' in action_keyword or '加注' in action_keyword:
-            # 增加raise/bet频率
-            primary_action = 'raise' if 'raise' in adjusted else 'bet'
-            if primary_action in adjusted:
-                # 计算目标频率（GTO → Exploit的插值）
-                gto_freq = adjusted.get(primary_action, 0.0)
-                target_freq = max(target_frequency, 0.7)  # 激进至少70%
-                new_freq = gto_freq + alpha * (target_freq - gto_freq)
-
-                # 调整
-                delta = new_freq - adjusted.get(primary_action, 0.0)
-                adjusted[primary_action] = new_freq
-                # 从fold中减去
-                adjusted['fold'] = max(0.0, adjusted.get('fold', 0.0) - delta)
-
-        # 紧缩防守/过度弃牌
-        elif '弃牌' in action_keyword or 'fold' in action_keyword or '紧' in action_keyword:
-            # 增加fold频率
-            if 'fold' in adjusted:
-                gto_freq = adjusted.get('fold', 0.0)
-                target_freq = max(target_frequency, 0.6)
-                new_freq = gto_freq + alpha * (target_freq - gto_freq)
-
-                delta = new_freq - adjusted.get('fold', 0.0)
-                adjusted['fold'] = new_freq
-                # 从call/raise中减去
-                if 'call' in adjusted:
-                    adjusted['call'] = max(0.0, adjusted.get('call', 0.0) - delta * 0.7)
-                if 'raise' in adjusted or 'bet' in adjusted:
-                    action_key = 'raise' if 'raise' in adjusted else 'bet'
-                    adjusted[action_key] = max(0.0, adjusted.get(action_key, 0.0) - delta * 0.3)
-
-        # 被动跟注
-        elif '跟注' in action_keyword or 'call' in action_keyword or '被动' in action_keyword:
-            # 增加call频率
-            if 'call' in adjusted:
-                gto_freq = adjusted.get('call', 0.0)
-                target_freq = max(target_frequency, 0.5)
-                new_freq = gto_freq + alpha * (target_freq - gto_freq)
-
-                delta = new_freq - adjusted.get('call', 0.0)
-                adjusted['call'] = new_freq
-                # 从fold中减去
-                adjusted['fold'] = max(0.0, adjusted.get('fold', 0.0) - delta)
-
-        # Value betting（针对calling station）
-        elif 'value' in action_keyword or '价值' in action_keyword:
-            # 增加bet/raise频率，减少check
-            primary_action = 'bet' if 'bet' in adjusted else 'raise'
-            if primary_action in adjusted:
-                gto_freq = adjusted.get(primary_action, 0.0)
-                new_freq = gto_freq + alpha * (0.99 - gto_freq)
-
-                delta = new_freq - adjusted.get(primary_action, 0.0)
-                adjusted[primary_action] = new_freq
-                if 'check' in adjusted:
-                    adjusted['check'] = max(0.0, adjusted.get('check', 0.0) - delta)
-
-        # 确保所有值非负
-        for key in adjusted:
-            adjusted[key] = max(0.0, adjusted[key])
-
-        return adjusted
-
     def _apply_exploit_sizing(
         self,
         gto_sizing: Dict[float, float],
-        exploit_advice: 'StrategyAdvice',
+        exploit_advice: any,
         alpha: float,
         ctx: StrategyContext
     ) -> Dict[float, float]:
         """
         应用exploit sizing建议
+
+        Args:
+            gto_sizing: GTO sizing分布
+            exploit_advice: Exploit建议
+            alpha: Exploit权重
+            ctx: StrategyContext
+
+        Returns:
+            调整后的sizing分布
         """
-        if not exploit_advice.sizing or alpha < 0.1:
+        if not exploit_advice.sizing_range or alpha < 0.1:
             return gto_sizing
 
-        # 解析sizing建议
-        target_sizings = self._parse_sizing(exploit_advice.sizing, ctx)
-        
-        if not target_sizings:
-            return gto_sizing
+        # 解析sizing_range
+        sizing_min, sizing_max = exploit_advice.sizing_range
+        target_sizing_avg = (sizing_min + sizing_max) / 2
 
         # 如果alpha很高，完全使用exploit sizing
         if alpha >= 0.8:
-            return target_sizings
-            
+            return {target_sizing_avg: 1.0}
+
         # 否则混合 (简单混合：将exploit sizing加入分布)
         mixed_sizing = gto_sizing.copy()
-        
+
         # 归一化GTO
         total_gto = sum(mixed_sizing.values())
         if total_gto > 0:
             mixed_sizing = {k: v * (1 - alpha) for k, v in mixed_sizing.items()}
-            
+
         # 加入Exploit
-        for size, prob in target_sizings.items():
-            mixed_sizing[size] = mixed_sizing.get(size, 0.0) + prob * alpha
-            
+        mixed_sizing[target_sizing_avg] = mixed_sizing.get(target_sizing_avg, 0.0) + alpha
+
         # 重新归一化
         total = sum(mixed_sizing.values())
         if total > 0:
             return {k: v/total for k, v in mixed_sizing.items()}
-            
-        return target_sizings
 
-    def _parse_sizing(self, sizing_str: str, ctx: StrategyContext) -> Dict[float, float]:
-        """
-        解析sizing字符串为 {pot_fraction: probability}
-        支持格式:
-        - "75-150% pot"
-        - "2.5-3BB"
-        - "Min-raise"
-        """
-        import re
-        
-        sizing_str = sizing_str.lower()
-        result = {}
-        
-        # 1. 处理 "% pot"
-        if 'pot' in sizing_str:
-            # 提取百分比范围
-            matches = re.findall(r'(\d+(?:\.\d+)?)\s*[-to]*\s*(\d+(?:\.\d+)?)?\s*%', sizing_str)
-            if matches:
-                min_pct = float(matches[0][0])
-                max_pct = float(matches[0][1]) if matches[0][1] else min_pct
-                
-                # 转换为fraction
-                min_frac = min_pct / 100.0
-                max_frac = max_pct / 100.0
-                
-                if min_frac == max_frac:
-                    result[min_frac] = 1.0
-                else:
-                    # 简单的分布：min, max, avg
-                    avg = (min_frac + max_frac) / 2
-                    result[min_frac] = 0.2
-                    result[max_frac] = 0.2
-                    result[avg] = 0.6
-                    
-                return result
-                
-        # 2. 处理 "BB"
-        if 'bb' in sizing_str:
-            matches = re.findall(r'(\d+(?:\.\d+)?)\s*[-to]*\s*(\d+(?:\.\d+)?)?\s*bb', sizing_str)
-            if matches:
-                min_bb = float(matches[0][0])
-                max_bb = float(matches[0][1]) if matches[0][1] else min_bb
-                
-                # 转换为pot fraction
-                pot_bb = ctx.pot_size if ctx.pot_size > 0 else 1.0
-                
-                min_frac = min_bb / pot_bb
-                max_frac = max_bb / pot_bb
-                
-                avg = (min_frac + max_frac) / 2
-                result[avg] = 1.0
-                return result
-
-        # 3. 关键词处理
-        if 'min-raise' in sizing_str or 'min raise' in sizing_str:
-            # 假设min raise是2BB或者最小加注额
-            # 这里简化为很小的pot fraction
-            result[0.3] = 1.0 # 假设通常min raise比较小
-            return result
-            
-        if 'overbet' in sizing_str:
-            result[1.5] = 1.0
-            return result
-            
-        return {}
-
-    def _parse_frequency(self, frequency_str: str) -> float:
-        """
-        解析频率字符串
-        
-        Args:
-            frequency_str: "80%+", "50-70%", "rarely"等
-            
-        Returns:
-            频率值 (0-1)
-        """
-        if not frequency_str:
-            return 0.5
-
-        freq_lower = frequency_str.lower()
-
-        # 解析百分比
-        if '%' in freq_lower:
-            # 提取数字
-            import re
-            numbers = re.findall(r'\d+', freq_lower)
-            if numbers:
-                num = int(numbers[0])
-                return num / 100.0
-
-        # 关键词
-        if 'rarely' in freq_lower or '很少' in freq_lower:
-            return 0.2
-        elif 'sometimes' in freq_lower or '有时' in freq_lower:
-            return 0.4
-        elif 'often' in freq_lower or '经常' in freq_lower or '频繁' in freq_lower:
-            return 0.7
-        elif 'always' in freq_lower or '总是' in freq_lower:
-            return 0.9
-
-        # 默认
-        return 0.5
+        return {target_sizing_avg: 1.0}
 
     def get_name(self) -> str:
         """返回策略名称"""

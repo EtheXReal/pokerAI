@@ -562,7 +562,10 @@ class DecisionIntegrator(IDecisionIntegrator):
             villain_stats = self.tracker.get_stats(villain_id)
 
         # 如果有足够数据，进行分类
-        if villain_stats and villain_stats.hands_played >= 20:
+        # 使用classifier的MIN_HANDS_FOR_CLASSIFICATION阈值
+        min_hands_required = self.classifier.MIN_HANDS_FOR_CLASSIFICATION if hasattr(self.classifier, 'MIN_HANDS_FOR_CLASSIFICATION') else 30
+
+        if villain_stats and villain_stats.hands_played >= min_hands_required:
             classification_result = self.classifier.classify(villain_stats)
             player_type = classification_result.player_type
             confidence = classification_result.confidence

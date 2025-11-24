@@ -306,21 +306,22 @@ class PokerGame:
             side_pots, self.players, hand_strengths_list, verbose=False
         )
 
-        # 显示获胜者（从边池赢得的）
-        if self.config.verbose:
-            for i, amount in enumerate(pot_winnings):
-                if amount > ZERO_THRESHOLD:
-                    print(f"  {self.players[i].name} wins {amount:.1f}BB")
-
-        # 显示退款（未被跟注的筹码）
-        if self.config.verbose and refunds:
-            for seat, refund_amount in refunds.items():
-                print(f"  {self.players[seat].name} refund {refund_amount:.1f}BB (uncalled)")
-
+        # 先计算所有盈亏，然后统一显示
         # 计算总的player_winnings（边池获胜 + 退款）
         player_winnings = list(pot_winnings)  # 复制一份
         for seat, refund_amount in refunds.items():
             player_winnings[seat] += refund_amount
+
+        # 显示获胜者和盈亏
+        if self.config.verbose:
+            print()  # 空行
+            for i, player in enumerate(self.players):
+                winnings = player_winnings[i]
+                profit = winnings - player.invested
+                if winnings > ZERO_THRESHOLD:
+                    print(f"  {player.name}: wins {winnings:.1f}BB, profit {profit:+.1f}BB")
+                elif player.invested > ZERO_THRESHOLD:
+                    print(f"  {player.name}: loses {player.invested:.1f}BB")
 
         # 找到真正的获胜者（盈利 > 0的玩家）
         winner_seats = []
@@ -388,7 +389,13 @@ class PokerGame:
             player_profits.append(profit)
 
         if self.config.verbose:
-            print(f"  {winner_name} wins {pot:.1f}BB (fold)")
+            winner_profit = pot - winner.invested
+            print()  # 空行
+            print(f"  {winner_name}: wins {pot:.1f}BB, profit {winner_profit:+.1f}BB (fold)")
+            # 显示输家
+            for player in self.players:
+                if player.name != winner_name and player.invested > ZERO_THRESHOLD:
+                    print(f"  {player.name}: loses {player.invested:.1f}BB")
 
         flop_str = [str(c) for c in flop_cards] if flop_cards else []
         turn_str = str(turn_card) if turn_card else ""

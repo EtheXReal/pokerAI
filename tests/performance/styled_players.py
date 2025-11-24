@@ -42,8 +42,14 @@ class TAGPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 22%, PFR 18%, 3-bet ~6%"""
+        """翻前决策 - VPIP 22%, PFR 18%, 3-bet ~6%
+
+        注意：在2人游戏中调整facing raise范围以维持目标VPIP
+        """
         rand = random.random()
+
+        # 检测2人游戏
+        is_heads_up = game_state.num_active_players == 2
 
         # 区分：面对BB vs 面对raise
         facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
@@ -76,9 +82,17 @@ class TAGPlayer(Player):
                 return PlayerAction(action='fold', amount=0)
         else:
             # 面对raise（真正的3-bet决策）
-            # TAG面对raise时收紧：只用~7%最强牌，其中90%是3-bet
-            if rand < 0.07:  # 面对raise时的范围
-                if random.random() < 0.90:  # 90% 3-bet, 10% call
+            # BUG FIX: 在2人游戏中，TAG需要放宽范围以维持22% VPIP
+            if is_heads_up:
+                # 2人游戏：使用接近目标VPIP的范围
+                facing_raise_range = 0.20  # 20%范围（稍紧因为有风险）
+            else:
+                # 多人游戏：较紧
+                facing_raise_range = 0.07
+
+            if rand < facing_raise_range:
+                # TAG激进地3-bet
+                if random.random() < 0.70:  # 70% 3-bet
                     # 3-bet
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
@@ -155,8 +169,14 @@ class LAGPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 40%, PFR 28%, 3-bet ~10%"""
+        """翻前决策 - VPIP 40%, PFR 28%, 3-bet ~10%
+
+        注意：在2人游戏中调整facing raise范围以维持目标VPIP
+        """
         rand = random.random()
+
+        # 检测2人游戏
+        is_heads_up = game_state.num_active_players == 2
 
         # 区分：面对BB vs 面对raise
         facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
@@ -186,15 +206,23 @@ class LAGPlayer(Player):
                 return PlayerAction(action='fold', amount=0)
         else:
             # 面对raise（真正的3-bet决策）
-            # LAG面对raise时：用~12%牌，其中85%是3-bet
-            if rand < 0.12:  # 面对raise时的范围
-                if random.random() < 0.85:  # 85% 3-bet, 15% call
+            # BUG FIX: 在2人游戏中，LAG需要放宽范围以维持40% VPIP
+            if is_heads_up:
+                # 2人游戏：使用接近目标VPIP的范围
+                facing_raise_range = 0.38  # 38%范围（稍紧因为有风险）
+            else:
+                # 多人游戏：较紧
+                facing_raise_range = 0.12
+
+            if rand < facing_raise_range:
+                # LAG激进地3-bet
+                if random.random() < 0.60:  # 60% 3-bet
                     # 3-bet
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.5)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
-                    # Call (用于平衡)
+                    # Call (LAG也会call一些)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)
@@ -261,8 +289,15 @@ class NitPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 18%, PFR 6%, 3-bet ~2%"""
+        """翻前决策 - VPIP 18%, PFR 6%, 3-bet ~2%
+
+        注意：在2人游戏中需要稍微放宽facing raise范围
+        Nit即使在heads-up中也非常紧，但不能完全不玩
+        """
         rand = random.random()
+
+        # 检测2人游戏
+        is_heads_up = game_state.num_active_players == 2
 
         # 区分：面对BB vs 面对raise
         facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
@@ -292,15 +327,23 @@ class NitPlayer(Player):
                 return PlayerAction(action='fold', amount=0)
         else:
             # 面对raise（真正的3-bet决策）
-            # Nit面对raise时非常紧：只用~3%最强牌，其中70%是3-bet
-            if rand < 0.03:  # 面对raise时的范围
-                if random.random() < 0.70:  # 70% 3-bet, 30% call
+            # BUG FIX: 在2人游戏中，Nit需要稍微放宽范围，否则VPIP会过低
+            if is_heads_up:
+                # 2人游戏：使用稍宽的范围（但仍然很紧）
+                facing_raise_range = 0.15  # 15%范围（Nit在heads-up中仍然很紧）
+            else:
+                # 多人游戏：极紧
+                facing_raise_range = 0.03
+
+            if rand < facing_raise_range:
+                # Nit大部分是call，少量3-bet
+                if random.random() < 0.20:  # 20% 3-bet
                     # 3-bet
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.5, 3.0)
                     return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
                 else:
-                    # Call (用于平衡)
+                    # Call (Nit主要是call)
                     return PlayerAction(action='call', amount=game_state.to_call)
             else:
                 return PlayerAction(action='fold', amount=0)
@@ -367,13 +410,24 @@ class FishPlayer(Player):
             return self._decide_postflop(game_state)
 
     def _decide_preflop(self, game_state: GameState) -> PlayerAction:
-        """翻前决策 - VPIP 58%, PFR 14%, 3-bet ~5%"""
+        """翻前决策 - VPIP 58%, PFR 14%, 3-bet ~5%
+
+        注意：在2人游戏中，我们需要调整facing raise时的范围，
+        因为你总是在盲注位，且经常面对raise。
+        为了维持58% VPIP，我们需要：
+        - 从Button (SB): 58% VPIP (limp/raise)
+        - 从BB facing raise: 也需要~58% VPIP (call/3bet)
+        """
         rand = random.random()
+
+        # 检测2人游戏：如果只有2个active players
+        is_heads_up = game_state.num_active_players == 2
 
         # 区分：面对BB vs 面对raise
         facing_raise = game_state.facing_bet > 1.0  # BB = 1.0
 
         if game_state.to_call == 0:
+            # BB position, no raise yet (can check or bet)
             if rand < 0.58:  # VPIP 58%
                 if random.random() < 0.24:  # PFR/VPIP = 24%
                     self.was_preflop_raiser = True
@@ -384,7 +438,7 @@ class FishPlayer(Player):
             else:
                 return PlayerAction(action='check', amount=0)
         elif not facing_raise:
-            # 面对BB但没有raise（可以open raise）
+            # Button/SB position or can open raise
             if rand < 0.58:  # VPIP 58%
                 if random.random() < 0.24:  # PFR/VPIP = 24%
                     # Open raise
@@ -397,10 +451,19 @@ class FishPlayer(Player):
             else:
                 return PlayerAction(action='fold', amount=0)
         else:
-            # 面对raise（真正的3-bet决策）
-            # Fish面对raise时：用~10%牌（太宽），其中50%是3-bet（被动）
-            if rand < 0.10:  # 面对raise时的范围
-                if random.random() < 0.50:  # 50% 3-bet, 50% call（Fish很被动）
+            # Facing a raise
+            # BUG FIX: 在2人游戏中，Fish应该用更宽的范围面对raise
+            # 否则整体VPIP会远低于目标58%
+            if is_heads_up:
+                # 2人游戏：使用接近目标VPIP的范围（稍微紧一点因为有风险）
+                facing_raise_range = 0.55  # 略低于58%因为面对raise
+            else:
+                # 多人游戏：更紧的范围
+                facing_raise_range = 0.10
+
+            if rand < facing_raise_range:
+                # Fish很被动，大部分是call，少量3-bet
+                if random.random() < 0.10:  # 只有10%是3-bet（Fish不爱加注）
                     # 3-bet
                     self.was_preflop_raiser = True
                     raise_size = game_state.facing_bet * random.uniform(2.0, 3.0)
@@ -440,3 +503,266 @@ class FishPlayer(Player):
             else:  # Raise: 3%
                 raise_size = game_state.facing_bet * random.uniform(2.0, 3.0)
                 return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+
+
+class CallingStationPlayer(Player):
+    """
+    Calling Station (超级被动跟注站)
+
+    特征：
+    - VPIP: 65% (玩几乎所有牌)
+    - PFR: 8% (几乎不加注)
+    - AF: 0.4 (极被动)
+    - C-Bet: 20%
+    - Fold to C-Bet: 25% (几乎不弃牌)
+    """
+
+    def __init__(self, name: str, seat: int, stack: float):
+        super().__init__(name, seat, stack)
+        self.was_preflop_raiser = False
+        self.saw_flop = False
+
+    def decide(self, game_state: GameState) -> PlayerAction:
+        """Calling Station决策逻辑"""
+        is_preflop = game_state.street == 'preflop'
+
+        if is_preflop:
+            self.was_preflop_raiser = False
+            self.saw_flop = False
+            return self._decide_preflop(game_state)
+        else:
+            if not self.saw_flop:
+                self.saw_flop = True
+            return self._decide_postflop(game_state)
+
+    def _decide_preflop(self, game_state: GameState) -> PlayerAction:
+        """翻前决策 - VPIP 65%, PFR 8%
+
+        注意：在2人游戏中调整facing raise范围以维持目标VPIP
+        Calling Station的特点是几乎从不弃牌，喜欢call
+        """
+        rand = random.random()
+
+        # 检测2人游戏
+        is_heads_up = game_state.num_active_players == 2
+        facing_raise = game_state.facing_bet > 1.0
+
+        if game_state.to_call == 0:
+            if rand < 0.65:  # VPIP 65%
+                if random.random() < 0.12:  # PFR/VPIP = 12%
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.pot * random.uniform(2.0, 2.5)
+                    return PlayerAction(action='bet', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+            else:
+                return PlayerAction(action='check', amount=0)
+        elif not facing_raise:
+            if rand < 0.65:
+                if random.random() < 0.12:
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.0, 2.5)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise：几乎总是call（很少弃牌或3-bet）
+            # BUG FIX: 在2人游戏中，Calling Station应该几乎从不弃牌
+            if is_heads_up:
+                # 2人游戏：65% VPIP，几乎全是call（极被动）
+                if rand < 0.03:  # 只有3% fold
+                    return PlayerAction(action='fold', amount=0)
+                elif rand < 0.95:  # 92% call (calling station核心特征)
+                    return PlayerAction(action='call', amount=game_state.to_call)
+                else:  # 5% 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.0, 2.5)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+            else:
+                # 多人游戏：稍微紧一点
+                if rand < 0.10:  # 10% fold
+                    return PlayerAction(action='fold', amount=0)
+                elif rand < 0.95:  # 85% call
+                    return PlayerAction(action='call', amount=game_state.to_call)
+                else:  # 5% 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(2.0, 2.5)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+
+    def _decide_postflop(self, game_state: GameState) -> PlayerAction:
+        """翻后决策 - AF 0.4, 几乎不弃牌"""
+        rand = random.random()
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
+
+        if game_state.to_call == 0:
+            if is_cbet_situation:
+                if rand < 0.20:  # C-bet 20%
+                    bet_size = game_state.pot * random.uniform(0.5, 0.75)
+                    return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+            else:
+                if rand < 0.15:  # 极被动
+                    bet_size = game_state.pot * random.uniform(0.5, 0.75)
+                    return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+        else:
+            # 面对下注：几乎总是call（Calling Station特征）
+            if rand < 0.25:  # 只有25% fold
+                return PlayerAction(action='fold', amount=0)
+            elif rand < 0.97:  # 72% call
+                return PlayerAction(action='call', amount=game_state.to_call)
+            else:  # 3% raise
+                raise_size = game_state.facing_bet * random.uniform(2.0, 2.5)
+                return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+
+
+class ManiacPlayer(Player):
+    """
+    Maniac (疯狂激进玩家)
+
+    特征：
+    - VPIP: 75% (玩几乎所有牌)
+    - PFR: 60% (疯狂加注)
+    - AF: 5.0 (极度激进)
+    - C-Bet: 90%
+    - Fold to C-Bet: 30%
+    - 3-bet: 25%
+    """
+
+    def __init__(self, name: str, seat: int, stack: float):
+        super().__init__(name, seat, stack)
+        self.was_preflop_raiser = False
+        self.saw_flop = False
+
+    def decide(self, game_state: GameState) -> PlayerAction:
+        """Maniac决策逻辑"""
+        is_preflop = game_state.street == 'preflop'
+
+        if is_preflop:
+            self.was_preflop_raiser = False
+            self.saw_flop = False
+            return self._decide_preflop(game_state)
+        else:
+            if not self.saw_flop:
+                self.saw_flop = True
+            return self._decide_postflop(game_state)
+
+    def _decide_preflop(self, game_state: GameState) -> PlayerAction:
+        """翻前决策 - VPIP 75%, PFR 60%
+
+        注意：在2人游戏中调整facing raise范围以维持目标VPIP
+        """
+        rand = random.random()
+
+        # 检测2人游戏
+        is_heads_up = game_state.num_active_players == 2
+        facing_raise = game_state.facing_bet > 1.0
+
+        if game_state.to_call == 0:
+            if rand < 0.75:  # VPIP 75%
+                if random.random() < 0.80:  # PFR/VPIP = 80%
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.pot * random.uniform(3.0, 5.0)
+                    return PlayerAction(action='bet', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+            else:
+                return PlayerAction(action='check', amount=0)
+        elif not facing_raise:
+            if rand < 0.75:
+                if random.random() < 0.80:
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(3.0, 5.0)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='call', amount=game_state.to_call)
+            else:
+                return PlayerAction(action='fold', amount=0)
+        else:
+            # 面对raise：疯狂3-bet
+            # BUG FIX: 在2人游戏中，Maniac应该几乎从不弃牌
+            if is_heads_up:
+                # 2人游戏：75% VPIP，非常激进地面对raise
+                if rand < 0.05:  # 只有5% fold
+                    return PlayerAction(action='fold', amount=0)
+                elif rand < 0.30:  # 25% call
+                    return PlayerAction(action='call', amount=game_state.to_call)
+                else:  # 70% 3-bet (疯狂激进)
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(3.0, 5.0)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+            else:
+                # 多人游戏：稍微紧一点
+                if rand < 0.20:  # 20% fold
+                    return PlayerAction(action='fold', amount=0)
+                elif rand < 0.50:  # 30% call
+                    return PlayerAction(action='call', amount=game_state.to_call)
+                else:  # 50% 3-bet
+                    self.was_preflop_raiser = True
+                    raise_size = game_state.facing_bet * random.uniform(3.0, 5.0)
+                    return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+
+    def _decide_postflop(self, game_state: GameState) -> PlayerAction:
+        """翻后决策 - AF 5.0, C-Bet 90%"""
+        rand = random.random()
+        is_cbet_situation = (self.was_preflop_raiser and game_state.street == 'flop')
+
+        if game_state.to_call == 0:
+            if is_cbet_situation:
+                if rand < 0.90:  # C-bet 90%
+                    bet_size = game_state.pot * random.uniform(0.75, 1.5)
+                    return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+            else:
+                if rand < 0.80:  # 极度激进
+                    bet_size = game_state.pot * random.uniform(0.75, 1.5)
+                    return PlayerAction(action='bet', amount=min(bet_size, game_state.hero_stack))
+                else:
+                    return PlayerAction(action='check', amount=0)
+        else:
+            # 面对下注：经常raise
+            if rand < 0.30:  # 30% fold
+                return PlayerAction(action='fold', amount=0)
+            elif rand < 0.55:  # 25% call
+                return PlayerAction(action='call', amount=game_state.to_call)
+            else:  # 45% raise
+                raise_size = game_state.facing_bet * random.uniform(3.0, 5.0)
+                return PlayerAction(action='raise', amount=min(raise_size, game_state.hero_stack))
+
+
+def create_styled_player(style: str, name: str = None, seat: int = 0, stack: float = 100.0) -> Player:
+    """
+    创建特定风格的玩家
+
+    Args:
+        style: 玩家风格 ('tag', 'lag', 'nit', 'fish', 'calling_station', 'maniac')
+        name: 玩家名称
+        seat: 座位号
+        stack: 筹码量
+
+    Returns:
+        Player实例
+    """
+    style = style.lower()
+    if name is None:
+        name = style.upper()
+
+    style_map = {
+        'tag': TAGPlayer,
+        'lag': LAGPlayer,
+        'nit': NitPlayer,
+        'fish': FishPlayer,
+        'calling_station': CallingStationPlayer,
+        'maniac': ManiacPlayer,
+    }
+
+    player_class = style_map.get(style)
+    if not player_class:
+        raise ValueError(f"Unknown player style: {style}. Available: {list(style_map.keys())}")
+
+    return player_class(name, seat, stack)

@@ -6,7 +6,12 @@
       "Bash(find:*)",
       "Bash(timeout 30 bash:*)",
       "Bash(tee:*)",
-      "Bash(c:/Users/Administrator/Desktop/AIc/poj/tests/performance/__init__.py)"
+      "Bash(c:/Users/Administrator/Desktop/AIc/poj/tests/performance/__init__.py)",
+      "Bash(for style in nit calling_station maniac fish)",
+      "Bash(do echo \"=== Testing $style ===\")",
+      "Bash(done)",
+      "Bash(cmd /c tests\\performance\\test_all_styles.bat)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

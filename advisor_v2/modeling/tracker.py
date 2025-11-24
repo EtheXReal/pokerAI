@@ -124,20 +124,30 @@ class ActionParser:
         )
 
         # 分析翻后行动
+        # 判断玩家是否saw_flop：手牌进入flop且玩家没有翻前fold
         if len(flop_actions) > 0:
-            result.saw_flop = True
+            # 检查玩家是否翻前fold
+            player_folded_preflop = False
+            for actor, action_type, amount in preflop_actions:
+                if actor == player_id and action_type == ActionType.FOLD:
+                    player_folded_preflop = True
+                    break
 
-            # C-bet分析: 翻前加注者在翻牌圈下注
-            if preflop_raiser == player_id:
-                result.cbet_flop = ActionParser._did_cbet(
-                    player_id, flop_actions
-                )
+            # 如果没有翻前fold，说明saw_flop
+            if not player_folded_preflop:
+                result.saw_flop = True
 
-            # Fold to C-bet分析: 面对翻前加注者的翻牌圈下注
-            if preflop_raiser and preflop_raiser != player_id:
-                result.fold_to_cbet = ActionParser._did_fold_to_cbet(
-                    player_id, preflop_raiser, flop_actions
-                )
+                # C-bet分析: 翻前加注者在翻牌圈下注
+                if preflop_raiser == player_id:
+                    result.cbet_flop = ActionParser._did_cbet(
+                        player_id, flop_actions
+                    )
+
+                # Fold to C-bet分析: 面对翻前加注者的翻牌圈下注
+                if preflop_raiser and preflop_raiser != player_id:
+                    result.fold_to_cbet = ActionParser._did_fold_to_cbet(
+                        player_id, preflop_raiser, flop_actions
+                    )
 
         # 摊牌分析 (需要从外部传入)
         # result.went_to_showdown 和 won_at_showdown 需要由调用者填充
@@ -338,13 +348,46 @@ class StatsTracker:
             hand_result.position = parse_position(player.get('pos', 'UNKNOWN'))
 
             # 补充摊牌信息
-            hand_result.went_to_showdown = showdown
+            # BUG FIX: 只有实际参与摊牌的玩家才标记went_to_showdown=True
+            # 不能简单地用整手牌的showdown状态应用到所有玩家
             if showdown:
-                # 检查是否赢得摊牌
+                # 判断该玩家是否真的went_to_showdown:
+                # 1. 玩家在winners列表中（无论是否赢）
+                # 2. 或者玩家的最后一个action在river街道且不是fold
+                player_went_to_showdown = False
+
+                # 方法1: 检查是否在winners中
                 for winner in winners:
-                    if winner.get('seat', '') == player_id and winner.get('amount', 0) > 0:
-                        hand_result.won_at_showdown = True
+                    if winner.get('seat', '') == player_id:
+                        player_went_to_showdown = True
+                        # 检查是否赢得摊牌
+                        if winner.get('amount', 0) > 0:
+                            hand_result.won_at_showdown = True
                         break
+
+                # 方法2: 如果winners只包含赢家，我们需要检查玩家的行动
+                # 查找玩家的最后一个action
+                if not player_went_to_showdown:
+                    last_action_street = None
+                    last_action_type = None
+                    for action in reversed(actions):
+                        if action.get('actor', '') == player_id:
+                            last_action_street = action.get('street', '')
+                            last_action_type = action.get('action', '')
+                            break
+
+                    # 如果最后action在river且不是fold，说明去了摊牌
+                    if last_action_street == 'river' and last_action_type != 'fold':
+                        player_went_to_showdown = True
+                    # 或者如果玩家在flop/turn有action但没fold，且game到了showdown
+                    elif last_action_type and last_action_type != 'fold':
+                        # 这种情况需要检查游戏是否真的到了river
+                        # 简化：如果整手牌showdown且玩家最后不是fold，认为went_to_showdown
+                        player_went_to_showdown = True
+
+                hand_result.went_to_showdown = player_went_to_showdown
+            else:
+                hand_result.went_to_showdown = False
 
             # 更新统计
             stats = self.get_stats(player_id)

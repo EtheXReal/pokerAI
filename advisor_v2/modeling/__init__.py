@@ -23,7 +23,7 @@ from .storage import StorageBackend, SQLiteStorage, create_storage
 from .classifier import PlayerClassifier, ClassificationResult, classify_player, get_player_type_name
 from .exploits import (
     ExploitStrategy, StrategyLibrary, StrategyAdvice,
-    ActionContext, StreetStage, get_strategy
+    ActionContext, ExploitActionType, get_strategy, apply_exploit_adjustment
 )
 
 __all__ = [
@@ -51,8 +51,9 @@ __all__ = [
     'StrategyLibrary',
     'StrategyAdvice',
     'ActionContext',
-    'StreetStage',
+    'ExploitActionType',
     'get_strategy',
+    'apply_exploit_adjustment',
 ]
 
 __version__ = '0.1.0'

@@ -524,6 +524,127 @@ class RangeEngine(IRangeEngine):
             'weak': 0.25
         }
 
+    # ------------------------------------------------------------------
+    # 范围动态收缩（翻后）
+    # ------------------------------------------------------------------
+
+    # 各动作保留的范围比例（按成牌强度排序）
+    NARROW_KEEP_TOP = {
+        'bet': 0.45,    # 主动下注 → 强牌区 + 听牌
+        'raise': 0.35,  # 加注 → 更强
+        'call': 0.70,   # 跟注 → 去掉最弱的会弃牌部分
+    }
+    NARROW_CHECK_DROP_TOP = 0.15  # check → 去掉最强的部分（强牌通常会下注）
+    NARROW_MIN_COMBOS = 20        # 收缩下限，防止范围塌缩
+
+    def narrow_range_postflop(self, range_obj: Range, board: List,
+                              action: str) -> Range:
+        """
+        根据一次翻后动作收缩范围
+
+        - bet/raise: 保留成牌强度前段 + 听牌（花听/两头顺听作为bluff/半bluff部分）
+        - call: 去掉最弱的部分（那些牌面对下注会弃牌）
+        - check: 去掉最强的顶部（强牌通常会下注），保留其余
+        - fold/其他: 不收缩（fold后该玩家已出局）
+
+        收缩后不足 NARROW_MIN_COMBOS 个组合时返回原范围（信息不足，宁可保守）。
+        """
+        action = (action or '').lower()
+        if action not in ('bet', 'raise', 'call', 'check') or not board:
+            return range_obj
+
+        combos = list(range_obj.combos)
+        if len(combos) <= self.NARROW_MIN_COMBOS:
+            return range_obj
+
+        # 计算每个组合的成牌分数（排除与board冲突的组合）
+        scored = []
+        for combo in combos:
+            score = self._board_hand_score(combo.hand, board)
+            if score is not None:
+                scored.append((combo, score))
+
+        if len(scored) <= self.NARROW_MIN_COMBOS:
+            return range_obj
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        n = len(scored)
+
+        if action in ('bet', 'raise'):
+            keep_n = max(self.NARROW_MIN_COMBOS, int(n * self.NARROW_KEEP_TOP[action]))
+            kept = {c for c, _ in scored[:keep_n]}
+            # 半bluff部分：保留强听牌（花听/两头顺听）
+            for combo, _ in scored[keep_n:]:
+                if self._has_strong_draw(combo.hand, board):
+                    kept.add(combo)
+        elif action == 'call':
+            keep_n = max(self.NARROW_MIN_COMBOS, int(n * self.NARROW_KEEP_TOP['call']))
+            kept = {c for c, _ in scored[:keep_n]}
+            for combo, _ in scored[keep_n:]:
+                if self._has_strong_draw(combo.hand, board):
+                    kept.add(combo)
+        else:  # check
+            drop_n = int(n * self.NARROW_CHECK_DROP_TOP)
+            kept = {c for c, _ in scored[drop_n:]}
+
+        if len(kept) < self.NARROW_MIN_COMBOS:
+            return range_obj
+
+        return Range(kept)
+
+    @staticmethod
+    def _has_strong_draw(hand: Hand, board: List) -> bool:
+        """
+        检测强听牌：同花听牌（4张同花含≥1张手牌）或两头顺听
+
+        河牌圈无听牌意义，调用方保证board为flop/turn。
+        """
+        if len(board) >= 5:
+            return False
+
+        all_cards = list(hand.cards) + list(board)
+        # 与board冲突的组合无意义
+        if len(set(all_cards)) != len(all_cards):
+            return False
+
+        # 花听：手牌+board同花色共4张，且至少用到1张手牌
+        from collections import Counter
+        suit_counts = Counter(c.suit for c in all_cards)
+        for suit, count in suit_counts.items():
+            if count == 4 and any(c.suit == suit for c in hand.cards):
+                return True
+
+        # 两头顺听：存在连续4张（用到≥1张手牌），且两端都能补成顺子
+        ranks = sorted({int(c.rank) for c in all_cards})
+        rank_set = set(ranks)
+        hand_ranks = {int(c.rank) for c in hand.cards}
+        # A可作低端
+        if 14 in rank_set:
+            rank_set.add(1)
+        for low in range(1, 11):
+            window = {low, low + 1, low + 2, low + 3}
+            if window <= rank_set:
+                # 两头都开（low-1或low+4至少一端可补，两头顺听要求两端）
+                if (low - 1) >= 1 or (low + 4) <= 14:
+                    # 确认手牌参与
+                    if window & hand_ranks or (1 in window and 14 in hand_ranks):
+                        # 两头顺听：low-1和low+4都是合法牌
+                        if low - 1 >= 2 and low + 4 <= 14:
+                            return True
+        return False
+
+    def get_preflop_caller_range(self, position: Position,
+                                 vs_position: Position) -> Range:
+        """
+        翻前跟注者的范围（call open，非3bet）
+
+        优先查预置的call range表，无精确匹配时用通用call range。
+        """
+        call_key = f'call_{position.name}_vs_{vs_position.name}'
+        if call_key in self.range_cache:
+            return self.range_cache[call_key]
+        return Range.from_string("22-99,A2s+,K7s+,Q8s+,J8s+,T8s+,98s,87s,76s,ATo-A5o,KTo+,QTo+,JTo")
+
     def estimate_villain_range(self, villain_position: Position, action_history: list,
                                villain_tendencies: Optional[dict] = None) -> Range:
         """

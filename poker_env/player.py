@@ -2,7 +2,7 @@
 Player Interface for Poker Environment
 """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Tuple, Optional
 from poker_core import Hand, Board
 from .utils import ALLIN_THRESHOLD, round_amount
@@ -121,6 +121,10 @@ class GameState:
 
     # 是否在位置优势
     is_in_position: bool
+
+    # 本手牌到目前为止的公开行动记录（ActionRecord列表快照）
+    # 供决策方做范围推断等用途；默认空保持向后兼容
+    hand_actions: list = field(default_factory=list)
 
 
 class SimplePlayer(Player):

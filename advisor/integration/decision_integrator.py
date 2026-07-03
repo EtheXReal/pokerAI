@@ -211,18 +211,26 @@ class DecisionIntegrator(IDecisionIntegrator):
             action_history=action_history
         )
 
-        # 获取villain range（简化：使用GTO range）
-        # TODO: Phase 2集成OpponentModel
+        # 获取villain range：优先根据其翻前行动定基准范围
         villain_position = self._estimate_villain_position(game_state)
-        villain_range = self.range_engine.get_ideal_range(
-            position=villain_position,
-            action_history=[]
-        )
+        villain_range = self._estimate_villain_base_range(
+            game_state, villain_position, position)
+
+        board = list(game_state.board) if game_state.board else []
+
+        # 翻后：按双方行动序列收缩范围
+        if game_state.street != 'preflop' and board:
+            villain_range = self._narrow_by_actions(
+                villain_range, board, getattr(game_state, 'villain_actions', None))
+            hero_range = self._narrow_by_actions(
+                hero_range, board, getattr(game_state, 'hero_actions', None))
+
+            # villain不可能持有hero的牌
+            villain_range = villain_range.remove_dead_cards(set(game_state.hero_hand.cards))
 
         # 分析range interaction（如果是翻后）
         range_advantage = None
-        if game_state.street != 'preflop' and game_state.board:
-            board = list(game_state.board) if game_state.board else []
+        if game_state.street != 'preflop' and board:
             range_advantage = self.range_engine.analyze_range_interaction(
                 hero_range=hero_range,
                 villain_range=villain_range,
@@ -230,6 +238,44 @@ class DecisionIntegrator(IDecisionIntegrator):
             )
 
         return hero_range, villain_range, range_advantage
+
+    def _estimate_villain_base_range(self, game_state: any,
+                                     villain_position: Position,
+                                     hero_position: Position) -> Range:
+        """
+        根据villain的翻前行动确定其基准范围
+
+        - 翻前有raise → open range
+        - 只有call → 跟注范围（比open range弱，去掉了会3bet的顶部和会fold的底部）
+        - 无信息 → 该位置的open range（保守默认）
+        """
+        villain_actions = getattr(game_state, 'villain_actions', None) or []
+        preflop_actions = [a['action'] for a in villain_actions
+                           if a.get('street') == 'preflop']
+
+        if any(a in ('raise', 'bet') for a in preflop_actions):
+            return self.range_engine.get_ideal_range(
+                position=villain_position, action_history=[])
+        elif 'call' in preflop_actions:
+            return self.range_engine.get_preflop_caller_range(
+                villain_position, hero_position)
+        else:
+            return self.range_engine.get_ideal_range(
+                position=villain_position, action_history=[])
+
+    def _narrow_by_actions(self, range_obj: Range, board: list,
+                           actions: Optional[list]) -> Range:
+        """按翻后行动序列逐步收缩范围"""
+        if not actions:
+            return range_obj
+
+        narrowed = range_obj
+        for a in actions:
+            if a.get('street') == 'preflop':
+                continue
+            narrowed = self.range_engine.narrow_range_postflop(
+                narrowed, board, a.get('action', ''))
+        return narrowed
 
     def _calculate_equity(self, game_state: any, villain_range: Range) -> Optional[EquityInfo]:
         """
@@ -321,6 +367,12 @@ class DecisionIntegrator(IDecisionIntegrator):
             facing_bet = game_state.facing_bet > 0.01
             facing_bet_size = game_state.facing_bet if facing_bet else 0.0
 
+        # Hero手牌percentile：由RangeEngine基于（可能已收缩的）hero范围计算
+        board = list(game_state.board) if game_state.board else None
+        hero_percentile = self.range_engine.get_hand_percentile(
+            game_state.hero_hand, hero_range,
+            board=board if game_state.street != 'preflop' else None)
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
@@ -338,6 +390,7 @@ class DecisionIntegrator(IDecisionIntegrator):
             board_analysis=board_analysis,
             facing_bet=facing_bet,
             facing_bet_size=facing_bet_size,
+            hero_hand_percentile=hero_percentile,
         )
 
         return ctx

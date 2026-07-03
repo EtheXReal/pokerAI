@@ -397,8 +397,11 @@ class GTOStrategy(IStrategy):
         Returns:
             估计的percentile (0-1)
         """
-        # 简化实现：基于hand strength的粗略估计
-        # 实际应该调用RangeEngine.get_hand_percentile()
+        # 优先使用DecisionIntegrator经RangeEngine计算的精确percentile
+        if ctx.hero_hand_percentile is not None:
+            return ctx.hero_hand_percentile
+
+        # Fallback: 基于hand strength的粗略估计（独立使用GTOStrategy时）
 
         # 检查是否是对子
         is_pair = hand.cards[0].rank == hand.cards[1].rank

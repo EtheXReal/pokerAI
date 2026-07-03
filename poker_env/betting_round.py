@@ -145,7 +145,8 @@ class BettingRound:
                 min_raise=min_raise_to,
                 num_active_players=len([p for p in players if p.is_active]),
                 num_allin_players=len([p for p in players if p.is_allin]),
-                is_in_position=(current_seat == btn_seat)
+                is_in_position=(current_seat == btn_seat),
+                hand_actions=list(actions)
             )
 
             if self.debug:

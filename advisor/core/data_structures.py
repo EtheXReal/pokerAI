@@ -43,6 +43,11 @@ class GameState:
     board: Optional[Board] = None
     action_history: Optional[List[str]] = None  # ['open', '3bet', 'call', ...]
 
+    # 本手牌的结构化行动记录（用于范围动态收缩）
+    # 每项: {'street': 'preflop|flop|turn|river', 'action': 'fold|check|call|bet|raise'}
+    villain_actions: Optional[List[dict]] = None  # 对手的行动序列
+    hero_actions: Optional[List[dict]] = None     # hero自己的行动序列
+
     # 当前面对的情况
     facing_bet: Optional[float] = None  # 对手下注大小 (BB)
     bet_to_call: Optional[float] = None  # 需要跟注的金额 (BB)
@@ -111,6 +116,10 @@ class StrategyContext:
     is_in_position: bool = True
     facing_bet: bool = False
     facing_bet_size: float = 0.0
+
+    # Hero手牌在hero范围中的percentile（由DecisionIntegrator经RangeEngine计算）
+    # None时策略层退回自己的粗略估计
+    hero_hand_percentile: Optional[float] = None
 
     def __post_init__(self):
         """计算衍生属性"""

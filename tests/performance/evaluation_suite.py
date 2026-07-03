@@ -104,9 +104,28 @@ class AdvisorPlayer(Player):
         classification = self.classifier.classify(stats)
         return stats, classification.player_type
 
+    @staticmethod
+    def _normalize_action(action_str: str) -> str:
+        """poker_env动作串带金额（'bet 7.7BB'/'raise to 4BB'）→ 取动作类型"""
+        first = action_str.split()[0].lower() if action_str else ''
+        return first if first in ('fold', 'check', 'call', 'bet', 'raise') else 'check'
+
+    def _split_hand_actions(self, hand_actions):
+        """把本手动作记录拆成 hero/villain 两条结构化序列"""
+        hero_actions, villain_actions = [], []
+        for a in hand_actions or []:
+            entry = {'street': a.street, 'action': self._normalize_action(a.action)}
+            if a.player_name == self.name:
+                hero_actions.append(entry)
+            else:
+                villain_actions.append(entry)
+        return hero_actions, villain_actions
+
     def decide(self, game_state: GameState) -> PlayerAction:
         try:
             opponent_stats, opponent_type = self._get_villain_model()
+            hero_actions, villain_actions = self._split_hand_actions(
+                getattr(game_state, 'hand_actions', None))
 
             advisor_game_state = AdvisorGameState(
                 street=game_state.street,
@@ -121,6 +140,8 @@ class AdvisorPlayer(Player):
                 bet_to_call=game_state.to_call,
                 opponent_stats=opponent_stats,
                 opponent_type=opponent_type,
+                villain_actions=villain_actions,
+                hero_actions=hero_actions,
             )
 
             trace = self.integrator.decide(advisor_game_state)

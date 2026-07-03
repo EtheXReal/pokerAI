@@ -37,30 +37,34 @@ Phase 3: 数据捕获和UI（所有者自行开发）░░░░░░░░░
 - **2.4 Exploit 层**：ExploitEngine（按对手类型的动作空间调整）+ BalanceCalculator（GTO-Exploit 按样本量加权），管线：对局 → StatsTracker → PlayerClassifier → ExploitEngine
 - **2.5 评估协议**：`tests/performance/evaluation_suite.py`（多风格对手 × exploit 开/关对比、位置分解、标准误）
 
-### 基准成绩（2026-07-03，384手×2 duplicate对拆，seed=42）
+### 基准成绩（2026-07-03，256手×2 duplicate对拆，seed=42，exploit开）
 
 > duplicate对拆：同一副牌AI两边各打一次、配对计分，消除发牌运气。
-> 早期基准（vs 随机bot、非对拆）数字虚高且掩盖了多个结构性bug，已废弃。
+> ⚠️ 此前所有基准都受"all-in从未被应对"引擎bug污染（all-in底池只结算盲注），
+> 已废弃。修复后all-in真实结算整个筹码，方差随之显著变大，
+> 单seed数字只是弱信号——下一步需要多seed平均。
 
-| 对手风格 | 纯GTO | GTO+Exploit | exploit增益 | 说明 |
-|---------|-------|-------------|------------|------|
-| tag（会看牌） | +2.7 | **+18.2** | +15.5 | 从初版-160修复至此 ✅ |
-| aggressive | +21.2 | **+56.0** | +34.8 | bluff-catch生效 |
-| random | -4.2 | **+1.6** | +5.8 | |
-| passive | +2.6 | +0.5 | -2.1 | 噪声级 |
-| tight | -5.8 | -6.0 | -0.2 | 残余漏损，待微调 |
+| 对手风格 | BB/100 | ±SE | 说明 |
+|---------|--------|-----|------|
+| aggressive | +39.9 | 87.5 | |
+| tight | +30.1 | 46.7 | |
+| passive | +18.3 | 13.0 | |
+| tag（会看牌） | -1.1 | 29.7 | 从初版-160修复至此 |
+| random | -13.8 | 28.8 | 噪声内，待多seed确认 |
 
-（单位 BB/100，±SE 9~38；tight/random 的小幅负值为基线微调项）
-
-引入会看牌的TAG规则对手后暴露并修复的结构性bug（详见git history）：
-单挑位置名'BTN/SB'映射失败（BTN一直用MP最紧范围）、盲注误判为facing bet、
-BB空范围percentile退化、fold_to_cbet统计从未计算、范围收缩对乱打bot失真等。
+历史提交中修复的结构性bug（都在真实对局中暴露）：
+- **betting round：all-in后对手从未被要求应对**（用户实战发现"all-in只输1BB"）、
+  all-in玩家被误判负、BB option被跳过
+- 单挑位置名'BTN/SB'映射失败（BTN一直用MP最紧范围，翻前弃81%）
+- 盲注误判为facing bet、BB空范围percentile退化、fold_to_cbet统计从未计算
+- 范围收缩对乱打bot失真（现按对手信息量分档）
 
 ### 下一步（按优先级）
 
-1. **基线微调**：vs tight/random 的残余漏损（BB防守频率、薄价值阈值）
-2. **GTOStrategy 精细化**：sizing 分层（value/bluff 不同尺度）、多街规划
-3. **评估协议加强**：4096+ 手大样本、多 seed 平均、更多风格的会看牌对手
+1. **多 seed 评估**：all-in真实化后方差变大，单seed基准不可靠 → 8+ seed平均
+2. **all-in 应对策略**：引擎修复后AI首次面对真实全下压力，需校验/加强
+   facing shove 的 equity 阈值与筹码承诺逻辑
+3. **基线微调**：vs random 的残余漏损、GTOStrategy sizing 分层
 4. **多人桌（3-5人）决策支持**（当前决策链主要在 2 人桌验证）
 5. ~~CLI 复盘工具~~ → 已升级实现为 **1v1 人机对战网页**（`webplay/`，含AI决策透视）
 

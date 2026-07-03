@@ -90,18 +90,37 @@ class BettingRound:
                 current_player_idx = action_order.index(seat)
                 break
 
+        # 本街已行动且无需再应对的玩家集合（bet/raise会重置，其他玩家需重新应对）
+        acted = set()
+
         while num_actions < max_actions:
             num_actions += 1
 
-            # 检查是否还有玩家需要行动
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) == 0:
-                # 所有玩家都all-in了
+            # ---- 回合完成判定 ----
+            active_all = [p for p in players if p.is_active]  # 含all-in
+            if len(active_all) == 1:
+                # 其他人都fold了（all-in玩家仍算active，不能在这里判负！）
+                return active_all[0].name, pot
+
+            actionable = [p for p in active_all if not p.is_allin]
+            if len(actionable) == 0:
+                # 所有人都all-in → 直接发完公共牌摊牌
                 return None, pot
-            elif len(active_players) == 1:
-                # 其他人都fold了
-                winner = active_players[0]
-                return winner.name, pot
+
+            max_street_invested = max(p.street_invested for p in active_all)
+
+            if len(actionable) == 1 and \
+                    actionable[0].street_invested >= max_street_invested - EPSILON:
+                # 只剩一个能行动的玩家且已匹配最大投入（对手all-in）
+                # → 无意义再下注（对方无法跟注），直接进入下一街/摊牌
+                return None, pot
+
+            # 所有能行动的玩家都已行动过且投入匹配 → 回合结束
+            # 注意：未行动过的玩家（如面对limp的BB）必须获得option
+            if all(p.name in acted and
+                   p.street_invested >= max_street_invested - EPSILON
+                   for p in actionable):
+                return None, pot
 
             # 获取当前行动的玩家
             current_seat = action_order[current_player_idx]
@@ -112,19 +131,15 @@ class BettingRound:
                 current_player_idx = (current_player_idx + 1) % len(action_order)
                 continue
 
+            # 跳过已行动且无需应对新注的玩家
+            if current_player.name in acted and \
+                    current_player.street_invested >= max_street_invested - EPSILON:
+                current_player_idx = (current_player_idx + 1) % len(action_order)
+                continue
+
             # 计算facing bet和to_call
-            max_street_invested = max(p.street_invested for p in players if p.is_active)
             facing_bet = max_street_invested
             to_call = max(0, facing_bet - current_player.street_invested)
-
-            # 检查是否可以结束betting round
-            # 条件：所有active玩家的街道投入相等，且至少有一个玩家行动过
-            if num_actions > 1 and to_call <= EPSILON:
-                # 检查是否所有active玩家投入相等
-                active_invested = [p.street_invested for p in players if p.is_active]
-                if len(set(active_invested)) == 1:
-                    # 所有人投入相等，结束
-                    return None, pot
 
             # 计算game state
             position_name = get_position_name(current_seat, btn_seat, num_players)
@@ -370,17 +385,16 @@ class BettingRound:
                         if self.debug:
                             print(f"  [DEBUG] After raise: pot={pot:.2f}BB")
 
-            # 移到下一个玩家
-            current_player_idx = (current_player_idx + 1) % len(action_order)
+            # 更新已行动集合：若本次行动抬高了最大投入（bet/raise），
+            # 其他玩家需要重新应对 → 重置集合
+            new_max = max((p.street_invested for p in players if p.is_active), default=0.0)
+            if new_max > facing_bet + EPSILON:
+                acted = {current_player.name}
+            else:
+                acted.add(current_player.name)
 
-            # 检查是否所有active玩家都完成了行动
-            # 条件：所有active玩家的投入相等
-            active_players = [p for p in players if p.is_active and not p.is_allin]
-            if len(active_players) > 0:
-                active_invested = [p.street_invested for p in active_players]
-                if len(set(active_invested)) == 1 and num_actions >= len(active_players):
-                    # 所有人投入相等且每人至少行动过一次
-                    return None, pot
+            # 移到下一个玩家（回合完成判定统一在循环顶部进行）
+            current_player_idx = (current_player_idx + 1) % len(action_order)
 
         # 达到max_actions
         if self.verbose:

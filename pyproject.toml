@@ -1,0 +1,21 @@
+[project]
+name = "pokerai"
+version = "0.2.0"
+description = "德州扑克 AI 决策系统：range-based GTO + 对手建模（个人研究项目）"
+requires-python = ">=3.10"
+dependencies = [
+    "treys>=0.1.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/performance 是长时对战模拟脚本，不作为单元测试自动收集
+norecursedirs = ["tests/performance"]
+
+[tool.setuptools]
+packages = ["poker_core", "poker_env", "advisor"]

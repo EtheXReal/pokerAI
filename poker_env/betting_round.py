@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from .player import Player, PlayerAction, GameState
 from .utils import Street, get_action_order, get_position_name, round_amount, ALLIN_THRESHOLD, EPSILON
-from advisor.range_engine import Board
+from poker_core import Board
 
 
 @dataclass

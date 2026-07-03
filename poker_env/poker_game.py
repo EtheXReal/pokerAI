@@ -7,8 +7,8 @@ import random
 from dataclasses import dataclass
 from typing import List, Optional
 
-from advisor.range_engine import Hand, Board, create_deck, Card
-from advisor.range_engine.evaluator import HandEvaluator
+from poker_core import Hand, Board, create_deck, Card
+from poker_core.evaluator import HandEvaluator
 
 from .player import Player
 from .betting_round import BettingRound, ActionRecord

@@ -4,7 +4,7 @@ Player Interface for Poker Environment
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional
-from advisor.range_engine import Hand, Board
+from poker_core import Hand, Board
 from .utils import ALLIN_THRESHOLD, round_amount
 
 

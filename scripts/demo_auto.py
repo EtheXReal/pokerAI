@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from advisor.opponent_modeling import (
+from advisor.modeling import (
     create_opponent_stats,
     create_storage,
     create_tracker,

@@ -37,25 +37,32 @@ Phase 3: 数据捕获和UI（所有者自行开发）░░░░░░░░░
 - **2.4 Exploit 层**：ExploitEngine（按对手类型的动作空间调整）+ BalanceCalculator（GTO-Exploit 按样本量加权），管线：对局 → StatsTracker → PlayerClassifier → ExploitEngine
 - **2.5 评估协议**：`tests/performance/evaluation_suite.py`（多风格对手 × exploit 开/关对比、位置分解、标准误）
 
-### 基准成绩（2026-07-03，512手/风格，seed=42，exploit开/关对比）
+### 基准成绩（2026-07-03，384手×2 duplicate对拆，seed=42）
 
-| 对手风格 | 纯GTO | GTO+Exploit | exploit增益 | 对手被分类为 |
-|---------|-------|-------------|------------|-------------|
-| random | +40.1 | **+61.8** | +21.6 | fish (0.84) |
-| passive | +55.1 | **+65.0** | +9.8 | calling_station (0.97) |
-| aggressive | +96.0 | **+108.6** | +12.6 | lag (0.77) |
-| tight | +60.7 | **+72.8** | +12.0 | lag (0.92) |
+> duplicate对拆：同一副牌AI两边各打一次、配对计分，消除发牌运气。
+> 早期基准（vs 随机bot、非对拆）数字虚高且掩盖了多个结构性bug，已废弃。
 
-（单位 BB/100；单场增益在 1 个标准误内，但 4/4 风格方向一致为正，平均 +14）
+| 对手风格 | 纯GTO | GTO+Exploit | exploit增益 | 说明 |
+|---------|-------|-------------|------------|------|
+| tag（会看牌） | +2.7 | **+18.2** | +15.5 | 从初版-160修复至此 ✅ |
+| aggressive | +21.2 | **+56.0** | +34.8 | bluff-catch生效 |
+| random | -4.2 | **+1.6** | +5.8 | |
+| passive | +2.6 | +0.5 | -2.1 | 噪声级 |
+| tight | -5.8 | -6.0 | -0.2 | 残余漏损，待微调 |
+
+（单位 BB/100，±SE 9~38；tight/random 的小幅负值为基线微调项）
+
+引入会看牌的TAG规则对手后暴露并修复的结构性bug（详见git history）：
+单挑位置名'BTN/SB'映射失败（BTN一直用MP最紧范围）、盲注误判为facing bet、
+BB空范围percentile退化、fold_to_cbet统计从未计算、范围收缩对乱打bot失真等。
 
 ### 下一步（按优先级）
 
-1. **翻后范围动态更新**（根据行动序列缩小范围，提高翻后 percentile 精度）
-2. **评估协议加强**：更大样本（4096+ 手）、对拆型方差缩减（同副牌互换座位）、
-   增加 vs TAG 型（会看牌的规则对手）
-3. **GTOStrategy 精细化**：sizing 分层（value/bluff 不同尺度）、多街规划
+1. **基线微调**：vs tight/random 的残余漏损（BB防守频率、薄价值阈值）
+2. **GTOStrategy 精细化**：sizing 分层（value/bluff 不同尺度）、多街规划
+3. **评估协议加强**：4096+ 手大样本、多 seed 平均、更多风格的会看牌对手
 4. **多人桌（3-5人）决策支持**（当前决策链主要在 2 人桌验证）
-5. **CLI 复盘工具**：手动输入局面，查看 DecisionTrace 决策推理（Phase 2 调试工具）
+5. ~~CLI 复盘工具~~ → 已升级实现为 **1v1 人机对战网页**（`webplay/`，含AI决策透视）
 
 ## Phase 3: 数据捕获和UI（项目所有者自行开发）
 

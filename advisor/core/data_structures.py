@@ -121,6 +121,12 @@ class StrategyContext:
     # None时策略层退回自己的粗略估计
     hero_hand_percentile: Optional[float] = None
 
+    # Hero手牌在完整1326组合中的percentile（翻前防守宽度计算用）
+    hero_hand_percentile_full: Optional[float] = None
+
+    # 需要跟注的金额（BB；与facing_bet_size区别：已扣除自己本街投入）
+    to_call: float = 0.0
+
     def __post_init__(self):
         """计算衍生属性"""
         # 判断是否IP

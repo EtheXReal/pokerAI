@@ -184,7 +184,54 @@ class GTOStrategy(IStrategy):
         three_bet_threshold = 0.70
         call_threshold = 0.40
 
-        if percentile >= three_bet_threshold:
+        # 防守宽度必须看价格：面对最小加注(赔率~3:1)要防守~65%的起手牌，
+        # 否则会被"小额加注偷池、遇反抗就跑"的策略无限剥削
+        # （用户实战验证：修复前该策略 +82 BB/100）
+        to_call = ctx.to_call or ctx.facing_bet_size
+        pot_odds = to_call / (ctx.pot_size + to_call) if (ctx.pot_size + to_call) > 0 else 0.5
+        full_pct = ctx.hero_hand_percentile_full
+
+        # 小额加注(便宜的跟注价格)启用赔率防守；大注仍用紧的continue-range逻辑
+        if to_call <= 6.0 and full_pct is not None:
+            # 按赔率定防守目标（占全部起手牌的比例）
+            defend_target = min(0.80, max(0.30, 1.0 - 1.4 * pot_odds))
+
+            # 面对3bet及以上（对手范围显著更强）：防守目标打折
+            # 但保持对便宜的min-3bet仍有足够防守（防"小额加注偷池"剥削）
+            num_raises = sum(1 for a in ctx.action_history
+                             if a.action in ('raise', 'bet'))
+            if num_raises >= 2:
+                defend_target *= 0.65
+
+            # 按对手加注频率校准（A/B实测：对价值型对手盲目宽防守
+            # 反亏42 BB/100——翻后OOP拿杂牌面对价值下注是净损失；
+            # 对高频偷池者宽防守则是必须的反剥削）
+            pfr = ctx.villain_tendencies.get('pfr')
+            n_obs = ctx.villain_tendencies.get('hands_played', 0)
+            if pfr is not None and n_obs >= 20:
+                defend_target *= min(1.15, max(0.55, pfr / 0.45))
+            else:
+                defend_target *= 0.85  # 无数据时中性偏紧
+            defend_floor = 1.0 - defend_target  # full percentile需达到的下限
+
+            if full_pct >= defend_floor:
+                if percentile >= three_bet_threshold or full_pct >= 0.92:
+                    action_dist = {'raise': 1.0, 'call': 0.0, 'fold': 0.0}
+                    sizing_dist = {3.0: 1.0}
+                    reasoning = (f"Facing small raise (odds {pot_odds:.2f}): "
+                                 f"full_pct {full_pct:.2f} 顶部 → 3bet")
+                else:
+                    action_dist = {'raise': 0.10, 'call': 0.90, 'fold': 0.0}
+                    sizing_dist = {3.0: 1.0}
+                    reasoning = (f"Facing small raise (odds {pot_odds:.2f}): "
+                                 f"full_pct {full_pct:.2f} >= {defend_floor:.2f} → defend")
+            else:
+                action_dist = {'raise': 0.0, 'call': 0.0, 'fold': 1.0}
+                sizing_dist = {}
+                reasoning = (f"Facing small raise: full_pct {full_pct:.2f} "
+                             f"< defend floor {defend_floor:.2f} → fold")
+
+        elif percentile >= three_bet_threshold:
             # Top range → 3bet
             action_dist = {'raise': 1.0, 'call': 0.0, 'fold': 0.0}
             sizing_dist = {3.0: 1.0}  # 3x对手的raise

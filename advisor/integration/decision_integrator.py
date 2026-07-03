@@ -63,6 +63,7 @@ class DecisionIntegrator(IDecisionIntegrator):
         self.board_analyzer = board_analyzer
         self.strategy = strategy
         self.exploit_engine = exploit_engine
+        self._full_range = None  # 懒加载的完整1326组合范围
 
         # 如果没有提供strategy，使用默认GTOStrategy
         if self.strategy is None:
@@ -405,6 +406,15 @@ class DecisionIntegrator(IDecisionIntegrator):
             game_state.hero_hand, hero_range,
             board=board if game_state.street != 'preflop' else None)
 
+        # 翻前另计完整范围percentile（防守宽度按赔率扩展时用：
+        # 面对便宜的加注，防守范围要比预置的continue range宽得多）
+        hero_percentile_full = None
+        if game_state.street == 'preflop':
+            if self._full_range is None:
+                self._full_range = Range.full()
+            hero_percentile_full = self.range_engine.get_hand_percentile(
+                game_state.hero_hand, self._full_range, board=None)
+
         # 构建StrategyContext
         ctx = StrategyContext(
             street=game_state.street,
@@ -423,6 +433,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             facing_bet=facing_bet,
             facing_bet_size=facing_bet_size,
             hero_hand_percentile=hero_percentile,
+            hero_hand_percentile_full=hero_percentile_full,
+            to_call=(game_state.bet_to_call or 0.0) if hasattr(game_state, 'bet_to_call') else 0.0,
         )
 
         return ctx

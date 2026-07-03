@@ -137,17 +137,18 @@ class GTOStrategy(IStrategy):
 
         # 其他位置首入：raise-or-fold，不limp
         # （limp垃圾牌是v1时代验证过的系统性漏损, 见docs/archive/32HANDS_CRITICAL_PROBLEMS.md）
-        elif percentile >= self.call_threshold:
-            # 在开池范围内 → raise（范围表已经筛过，开整个范围）
+        # 注意percentile是"范围内相对位置"：不在范围内=0.0，在范围内即使弱也>0
+        # → 范围表本身就是筛选器，范围内的牌全部开池
+        elif percentile >= 0.02:
             action_dist = {'raise': 1.0, 'call': 0.0, 'fold': 0.0}
             sizing_dist = {self.default_raise_size: 1.0}
-            reasoning = f"Preflop open: hand percentile {percentile:.2f} >= {self.call_threshold} → raise (no limp)"
+            reasoning = f"Preflop open: percentile {percentile:.2f} (in range) → raise (no limp)"
 
         else:
-            # Bottom of range → fold
+            # 不在开池范围内 → fold
             action_dist = {'raise': 0.0, 'call': 0.0, 'fold': 1.0}
             sizing_dist = {}
-            reasoning = f"Preflop open: hand percentile {percentile:.2f} < {self.call_threshold} → fold"
+            reasoning = f"Preflop open: percentile {percentile:.2f} (not in range) → fold"
 
         # 构建决策
         decision = StrategyDecision(

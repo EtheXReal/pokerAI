@@ -223,11 +223,16 @@ class DecisionIntegrator(IDecisionIntegrator):
         board = list(game_state.board) if game_state.board else []
 
         # 翻后：按双方行动序列收缩范围
+        # villain收缩强度取决于其动作的信息量（跟注站的call不含信息）
         if game_state.street != 'preflop' and board:
+            villain_style = self._villain_narrow_style(game_state)
             villain_range = self._narrow_by_actions(
-                villain_range, board, getattr(game_state, 'villain_actions', None))
+                villain_range, board, getattr(game_state, 'villain_actions', None),
+                style=villain_style)
+            # hero自己的动作遵循GTO策略设计 → honest收缩
             hero_range = self._narrow_by_actions(
-                hero_range, board, getattr(game_state, 'hero_actions', None))
+                hero_range, board, getattr(game_state, 'hero_actions', None),
+                style='honest')
 
             # villain不可能持有hero的牌
             villain_range = villain_range.remove_dead_cards(set(game_state.hero_hand.cards))
@@ -267,8 +272,28 @@ class DecisionIntegrator(IDecisionIntegrator):
             return self.range_engine.get_ideal_range(
                 position=villain_position, action_history=[])
 
+    def _villain_narrow_style(self, game_state: any) -> str:
+        """
+        按对手类型确定其动作的信息量档位
+
+        - 松被动/疯狂型（什么牌都call/bet）→ sticky（动作几乎不含信息）
+        - 紧型/规则型 → honest（动作与牌力强相关）
+        - 未知 → neutral
+        """
+        from advisor.modeling import PlayerType
+
+        opponent_type = getattr(game_state, 'opponent_type', None)
+        if opponent_type in (PlayerType.CALLING_STATION, PlayerType.LAP,
+                             PlayerType.FISH, PlayerType.MANIAC):
+            return 'sticky'
+        if opponent_type in (PlayerType.NIT, PlayerType.WEAK_TIGHT,
+                             PlayerType.TAG, PlayerType.SOLID_REG):
+            return 'honest'
+        return 'neutral'
+
     def _narrow_by_actions(self, range_obj: Range, board: list,
-                           actions: Optional[list]) -> Range:
+                           actions: Optional[list],
+                           style: str = 'neutral') -> Range:
         """按翻后行动序列逐步收缩范围"""
         if not actions:
             return range_obj
@@ -278,7 +303,7 @@ class DecisionIntegrator(IDecisionIntegrator):
             if a.get('street') == 'preflop':
                 continue
             narrowed = self.range_engine.narrow_range_postflop(
-                narrowed, board, a.get('action', ''))
+                narrowed, board, a.get('action', ''), style=style)
         return narrowed
 
     def _calculate_equity(self, game_state: any, villain_range: Range) -> Optional[EquityInfo]:
@@ -365,10 +390,13 @@ class DecisionIntegrator(IDecisionIntegrator):
         action_history = self._convert_action_history(game_state)
 
         # 判断是否facing bet（从game_state直接获取，不依赖action_history推断）
+        # 翻前特殊：BB的盲注不算"下注"——只有超过1BB的投入才是真的加注
+        # （否则BTN首入会被误判为facing bet，走防守分支而不是开池分支）
         facing_bet = False
         facing_bet_size = 0.0
         if hasattr(game_state, 'facing_bet') and game_state.facing_bet is not None:
-            facing_bet = game_state.facing_bet > 0.01
+            threshold = 1.01 if game_state.street == 'preflop' else 0.01
+            facing_bet = game_state.facing_bet > threshold
             facing_bet_size = game_state.facing_bet if facing_bet else 0.0
 
         # Hero手牌percentile：由RangeEngine基于（可能已收缩的）hero范围计算
@@ -549,6 +577,7 @@ class DecisionIntegrator(IDecisionIntegrator):
         """
         position_map = {
             'BTN': Position.BTN,
+            'BTN/SB': Position.BTN,  # poker_env单挑时按钮位的名称
             'CO': Position.CO,
             'MP': Position.MP,
             'SB': Position.SB,

@@ -528,17 +528,19 @@ class RangeEngine(IRangeEngine):
     # 范围动态收缩（翻后）
     # ------------------------------------------------------------------
 
-    # 各动作保留的范围比例（按成牌强度排序）
-    NARROW_KEEP_TOP = {
-        'bet': 0.45,    # 主动下注 → 强牌区 + 听牌
-        'raise': 0.35,  # 加注 → 更强
-        'call': 0.70,   # 跟注 → 去掉最弱的会弃牌部分
+    # 各动作保留的范围比例（按成牌强度排序），按对手行动信息量分档：
+    # - honest: 动作与牌力强相关（紧凶/规则型对手）→ 激进收缩
+    # - neutral: 未知对手 → 温和收缩（GTO近似）
+    # - sticky: 动作几乎不含信息（跟注站/疯狂型，什么牌都call/bet）→ 微收缩
+    NARROW_PROFILES = {
+        'honest':  {'bet': 0.45, 'raise': 0.35, 'call': 0.70, 'check_drop': 0.15},
+        'neutral': {'bet': 0.60, 'raise': 0.45, 'call': 0.85, 'check_drop': 0.10},
+        'sticky':  {'bet': 0.75, 'raise': 0.55, 'call': 1.00, 'check_drop': 0.05},
     }
-    NARROW_CHECK_DROP_TOP = 0.15  # check → 去掉最强的部分（强牌通常会下注）
     NARROW_MIN_COMBOS = 20        # 收缩下限，防止范围塌缩
 
     def narrow_range_postflop(self, range_obj: Range, board: List,
-                              action: str) -> Range:
+                              action: str, style: str = 'neutral') -> Range:
         """
         根据一次翻后动作收缩范围
 
@@ -547,11 +549,18 @@ class RangeEngine(IRangeEngine):
         - check: 去掉最强的顶部（强牌通常会下注），保留其余
         - fold/其他: 不收缩（fold后该玩家已出局）
 
+        Args:
+            style: 对手动作的信息量档位 'honest' / 'neutral' / 'sticky'
+
         收缩后不足 NARROW_MIN_COMBOS 个组合时返回原范围（信息不足，宁可保守）。
         """
         action = (action or '').lower()
         if action not in ('bet', 'raise', 'call', 'check') or not board:
             return range_obj
+
+        profile = self.NARROW_PROFILES.get(style, self.NARROW_PROFILES['neutral'])
+        if action == 'call' and profile['call'] >= 1.0:
+            return range_obj  # sticky对手的call不含信息
 
         combos = list(range_obj.combos)
         if len(combos) <= self.NARROW_MIN_COMBOS:
@@ -570,21 +579,15 @@ class RangeEngine(IRangeEngine):
         scored.sort(key=lambda x: x[1], reverse=True)
         n = len(scored)
 
-        if action in ('bet', 'raise'):
-            keep_n = max(self.NARROW_MIN_COMBOS, int(n * self.NARROW_KEEP_TOP[action]))
+        if action in ('bet', 'raise', 'call'):
+            keep_n = max(self.NARROW_MIN_COMBOS, int(n * profile[action]))
             kept = {c for c, _ in scored[:keep_n]}
             # 半bluff部分：保留强听牌（花听/两头顺听）
             for combo, _ in scored[keep_n:]:
                 if self._has_strong_draw(combo.hand, board):
                     kept.add(combo)
-        elif action == 'call':
-            keep_n = max(self.NARROW_MIN_COMBOS, int(n * self.NARROW_KEEP_TOP['call']))
-            kept = {c for c, _ in scored[:keep_n]}
-            for combo, _ in scored[keep_n:]:
-                if self._has_strong_draw(combo.hand, board):
-                    kept.add(combo)
         else:  # check
-            drop_n = int(n * self.NARROW_CHECK_DROP_TOP)
+            drop_n = int(n * profile['check_drop'])
             kept = {c for c, _ in scored[drop_n:]}
 
         if len(kept) < self.NARROW_MIN_COMBOS:

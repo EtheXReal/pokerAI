@@ -171,6 +171,10 @@ class Session:
 
         if pending is not None:
             gs = pending
+            # 最大可加注到 = 对手当前注 + 你剩余的全部筹码（超过即all-in）
+            max_raise_to = round(gs.facing_bet + (gs.hero_stack - gs.to_call), 2)
+            # 最小加注到不能超过你的all-in额（引擎允许不足额all-in）
+            min_raise_to = round(min(gs.min_raise, max_raise_to), 2)
             state['table'] = {
                 'street': gs.street,
                 'board': [str(c) for c in gs.board] if gs.board else [],
@@ -179,7 +183,8 @@ class Session:
                 'your_stack': round(gs.hero_stack, 2),
                 'to_call': round(gs.to_call, 2),
                 'facing_bet': round(gs.facing_bet, 2),
-                'min_raise_to': round(gs.min_raise, 2),
+                'min_raise_to': min_raise_to,
+                'max_raise_to': max_raise_to,
                 'position': gs.position,
                 'log': [f"[{a.street}] {a.player_name}: {a.action}"
                         for a in getattr(gs, 'hand_actions', [])],

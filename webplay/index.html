@@ -88,6 +88,7 @@
 <script>
 const $ = id => document.getElementById(id);
 let lastState = null;
+let lastActionSig = null;  // 决策上下文签名：避免轮询重置用户正在输入的金额
 
 function suitClass(c) { return (c.endsWith('h')||c.endsWith('d')) ? 'card red' : 'card'; }
 function suitSym(s) { return {s:'♠',h:'♥',d:'♦',c:'♣'}[s]||s; }
@@ -110,6 +111,15 @@ async function act(action, amount) {
   poll();
 }
 function toggle(id) { $(id).classList.toggle('hidden'); }
+function clampRaise() {
+  const inp = $('raise-amt');
+  const v = Math.max(+inp.min, Math.min(+inp.max, +inp.value || +inp.min));
+  return v;
+}
+function clampBet() {
+  const inp = $('bet-amt');
+  return Math.max(+inp.min, Math.min(+inp.max, +inp.value || +inp.min));
+}
 
 function render(s) {
   lastState = s;
@@ -131,27 +141,36 @@ function render(s) {
     $('my-stack').textContent = g.your_stack + ' BB';
     $('log').innerHTML = g.log.join('<br>');
 
+    // 决策上下文没变就不重绘按钮区（否则会重置你正在输入的金额）
+    const sig = `${g.street}|${g.pot}|${g.to_call}|${g.log.length}`;
+    if (sig === lastActionSig) return;
+    lastActionSig = sig;
+
     let html = '';
     html += `<button class="danger" onclick="act('fold')">Fold</button>`;
     if (g.to_call > 0.01) {
       html += `<button class="neutral" onclick="act('call')">Call ${g.to_call}</button>`;
-      html += `<div class="raise-box"><button onclick="act('raise', +$('raise-amt').value)">Raise to</button>
-               <input id="raise-amt" type="number" step="0.5" value="${g.min_raise_to}"></div>`;
+      html += `<div class="raise-box"><button onclick="act('raise', clampRaise())">Raise to</button>
+               <input id="raise-amt" type="number" step="0.5" value="${g.min_raise_to}"
+                      min="${g.min_raise_to}" max="${g.max_raise_to}"
+                      title="范围 ${g.min_raise_to} ~ ${g.max_raise_to}（超出即All-in额）"></div>`;
     } else {
       html += `<button class="neutral" onclick="act('check')">Check</button>`;
       const half = Math.max(1, Math.round(g.pot*0.5*2)/2), full = Math.max(1, Math.round(g.pot*2)/2);
       html += `<button onclick="act('bet', ${half})">Bet ½池 (${half})</button>`;
       html += `<button onclick="act('bet', ${full})">Bet 满池 (${full})</button>`;
-      html += `<div class="raise-box"><button onclick="act('bet', +$('bet-amt').value)">Bet</button>
-               <input id="bet-amt" type="number" step="0.5" value="${half}"></div>`;
+      html += `<div class="raise-box"><button onclick="act('bet', clampBet())">Bet</button>
+               <input id="bet-amt" type="number" step="0.5" value="${half}" min="1" max="${g.your_stack}"></div>`;
     }
-    html += `<button class="gold" onclick="act('allin')">All-in</button>`;
+    html += `<button class="gold" onclick="act('allin')">All-in (${g.your_stack})</button>`;
     actionsEl.innerHTML = html;
 
   } else if (s.hand_active) {
+    lastActionSig = null;
     actionsEl.innerHTML = '<button disabled>AI 思考中…</button>';
 
   } else {
+    lastActionSig = null;
     actionsEl.innerHTML = '<button class="gold" onclick="newHand()">发下一手</button>';
     const r = s.last_hand;
     if (r) {

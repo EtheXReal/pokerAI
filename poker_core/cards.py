@@ -91,6 +91,14 @@ class Card:
     rank: Rank
     suit: Suit
 
+    def __post_init__(self):
+        # 允许 Card('A', 's') 这样的字符串参数，归一化为枚举
+        # （frozen dataclass 需要用 object.__setattr__）
+        if isinstance(self.rank, str):
+            object.__setattr__(self, 'rank', Rank.from_str(self.rank))
+        if isinstance(self.suit, str):
+            object.__setattr__(self, 'suit', Suit.from_str(self.suit))
+
     def __str__(self) -> str:
         return f"{self.rank}{self.suit}"
 
@@ -158,6 +166,15 @@ class Hand:
 
     def __getitem__(self, index):
         return self.cards[index]
+
+    def __eq__(self, other) -> bool:
+        """顺序无关的相等性: Hand('AsKh') == Hand('KhAs')"""
+        if not isinstance(other, Hand):
+            return False
+        return frozenset(self.cards) == frozenset(other.cards)
+
+    def __hash__(self) -> int:
+        return hash(frozenset(self.cards))
 
     @staticmethod
     def from_str(s: str) -> Hand:

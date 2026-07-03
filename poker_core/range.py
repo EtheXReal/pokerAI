@@ -103,6 +103,14 @@ class Range:
         """转换为Hand列表 (用于equity计算)"""
         return [combo.hand for combo in self.combos]
 
+    def to_string(self) -> str:
+        """
+        序列化为逗号分隔的具体组合字符串 (如 "AsAh,KdKc")
+
+        与from_string互逆: Range.from_string(r.to_string()) == r
+        """
+        return ','.join(str(combo) for combo in self.combos)
+
     def intersect(self, other: 'Range') -> 'Range':
         """
         范围交集 (两个范围的共同部分)
@@ -204,6 +212,10 @@ class RangeGenerator:
         Returns:
             HandCombo列表
         """
+        # 具体组合，如 "AsKh" (rank大写+suit小写各2字符)
+        if len(notation.strip()) == 4:
+            return [HandCombo(Hand.from_str(notation.strip()))]
+
         notation = notation.strip().upper()
 
         # 解析符号
@@ -296,8 +308,12 @@ class RangeParser:
         """
         all_combos = set()
 
-        # 按逗号分割
-        parts = [p.strip() for p in expression.split(',')]
+        # 空表达式 → 空Range (如BB没有开池range)
+        if not expression or not expression.strip():
+            return Range(all_combos)
+
+        # 按逗号分割 (跳过空片段)
+        parts = [p.strip() for p in expression.split(',') if p.strip()]
 
         for part in parts:
             # 处理每个部分
@@ -389,10 +405,10 @@ class RangeParser:
         if len(parts) != 2:
             raise ValueError(f"Invalid range notation: {notation}")
 
-        start_str = parts[0].strip()
-        end_str = parts[1].strip()
+        start_str = parts[0].strip().upper()
+        end_str = parts[1].strip().upper()
 
-        # 目前只支持对子范围
+        # 对子范围，如 "88-JJ"
         if len(start_str) == 2 and start_str[0] == start_str[1]:
             start_rank = Rank.from_str(start_str[0])
             end_rank = Rank.from_str(end_str[0])
@@ -407,8 +423,29 @@ class RangeParser:
 
             return combos
 
-        else:
-            raise ValueError(f"Currently only pair ranges are supported: {notation}")
+        # 同高牌kicker范围，如 "A2s-A9s" 或 "K9o-KQo"
+        if (len(start_str) == 3 and len(end_str) == 3
+                and start_str[0] == end_str[0]
+                and start_str[2] == end_str[2]
+                and start_str[2] in ('S', 'O')):
+            high_rank = Rank.from_str(start_str[0])
+            lo = Rank.from_str(start_str[1])
+            hi = Rank.from_str(end_str[1])
+            if lo > hi:
+                lo, hi = hi, lo
+
+            suited = start_str[2] == 'S'
+            combos = []
+            for r in Rank:
+                if lo <= r <= hi and r != high_rank:
+                    if suited:
+                        combos.extend(RangeGenerator._generate_suited_combos(high_rank, r))
+                    else:
+                        combos.extend(RangeGenerator._generate_offsuit_combos(high_rank, r))
+
+            return combos
+
+        raise ValueError(f"Unsupported range notation: {notation}")
 
 
 def create_premium_range() -> Range:

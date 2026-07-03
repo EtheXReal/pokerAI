@@ -54,6 +54,9 @@ class RangeEngine(IRangeEngine):
         self.preflop_hand_strength_cache = {}
         self._build_preflop_strength_cache()
 
+        # Hand对象 → strength 备忘缓存（percentile计算热点）
+        self._hand_strength_memo = {}
+
     def _preload_ranges(self):
         """预加载所有range到缓存"""
         # Open ranges
@@ -109,9 +112,10 @@ class RangeEngine(IRangeEngine):
             'T9s': 0.72, 'T8s': 0.68, 'T7s': 0.62, 'T6s': 0.58, 'T5s': 0.54,
             'T4s': 0.50, 'T3s': 0.46, 'T2s': 0.44,
             '98s': 0.70, '97s': 0.64, '96s': 0.60, '95s': 0.56, '94s': 0.52,
-            '87s': 0.68, '86s': 0.62, '85s': 0.58, '84s': 0.54,
-            '76s': 0.66, '75s': 0.60, '74s': 0.56, '73s': 0.52,
-            '65s': 0.64, '64s': 0.58, '63s': 0.54,
+            '93s': 0.48, '92s': 0.46,
+            '87s': 0.68, '86s': 0.62, '85s': 0.58, '84s': 0.54, '83s': 0.48, '82s': 0.46,
+            '76s': 0.66, '75s': 0.60, '74s': 0.56, '73s': 0.52, '72s': 0.44,
+            '65s': 0.64, '64s': 0.58, '63s': 0.54, '62s': 0.46,
             '54s': 0.62, '53s': 0.56, '52s': 0.52,
             '43s': 0.54, '42s': 0.50,
             '32s': 0.52
@@ -120,7 +124,7 @@ class RangeEngine(IRangeEngine):
         # Offsuit hands
         offsuit_strength = {
             'AKo': 0.87, 'AQo': 0.83, 'AJo': 0.79, 'ATo': 0.75,
-            'A9o': 0.65, 'A8o': 0.60, 'A7o': 0.55, 'A6o': 0.52, 'A5o': 0.54,
+            'A9o': 0.65, 'A8o': 0.60, 'A7o': 0.55, 'A6o': 0.52, 'A5o': 0.60,  # A5o有wheel潜力(同A5s)
             'A4o': 0.50, 'A3o': 0.48, 'A2o': 0.46,
             'KQo': 0.77, 'KJo': 0.73, 'KTo': 0.69, 'K9o': 0.61, 'K8o': 0.57,
             'K7o': 0.53, 'K6o': 0.49, 'K5o': 0.47, 'K4o': 0.43, 'K3o': 0.41, 'K2o': 0.39,
@@ -131,9 +135,10 @@ class RangeEngine(IRangeEngine):
             'T9o': 0.67, 'T8o': 0.63, 'T7o': 0.57, 'T6o': 0.53, 'T5o': 0.49,
             'T4o': 0.45, 'T3o': 0.41, 'T2o': 0.39,
             '98o': 0.65, '97o': 0.59, '96o': 0.55, '95o': 0.51, '94o': 0.47,
-            '87o': 0.63, '86o': 0.57, '85o': 0.53, '84o': 0.49,
-            '76o': 0.61, '75o': 0.55, '74o': 0.51, '73o': 0.47,
-            '65o': 0.59, '64o': 0.53, '63o': 0.49,
+            '93o': 0.41, '92o': 0.39,
+            '87o': 0.63, '86o': 0.57, '85o': 0.53, '84o': 0.49, '83o': 0.41, '82o': 0.39,
+            '76o': 0.61, '75o': 0.55, '74o': 0.51, '73o': 0.47, '72o': 0.35,
+            '65o': 0.59, '64o': 0.53, '63o': 0.49, '62o': 0.39,
             '54o': 0.57, '53o': 0.51, '52o': 0.47,
             '43o': 0.49, '42o': 0.45,
             '32o': 0.47
@@ -187,8 +192,7 @@ class RangeEngine(IRangeEngine):
                 call_range = Range.from_string("22-88,A2s+,K5s+,Q8s+,J8s+,T8s+,A5o+,K9o+")
 
             # 合并3-bet和call range
-            combined_range_str = f"{three_bet_range.to_string()},{call_range.to_string()}"
-            return Range.from_string(combined_range_str)
+            return three_bet_range.union(call_range)
 
         elif len(action_history) == 2:
             # 可能是面对3-bet
@@ -210,8 +214,7 @@ class RangeEngine(IRangeEngine):
                     call_vs_3bet_range = Range.from_string("88-TT,AJs,KQs,AQo")
 
                 # 合并
-                combined_range_str = f"{four_bet_range.to_string()},{call_vs_3bet_range.to_string()}"
-                return Range.from_string(combined_range_str)
+                return four_bet_range.union(call_vs_3bet_range)
 
         # 默认：返回较宽的range
         return Range.from_string("22+,A2s+,K5s+,Q8s+,J8s+,T8s+,A5o+,K9o+")
@@ -241,48 +244,32 @@ class RangeEngine(IRangeEngine):
             # Hand不在range中，返回0
             return 0.0
 
+        # Percentile = 1 - (严格更强的组合数 / 总数)
+        # 并列的组合共享同一(最优)percentile：单一AA range中AA=1.0
         if not board or len(board) == 0:
-            # 翻前：基于preflop strength排序
-            hand_strengths = {}
-            for h in all_hands:
-                strength = self._get_preflop_hand_strength(h)
-                hand_strengths[h] = strength
-
-            # 排序
-            sorted_hands = sorted(hand_strengths.items(), key=lambda x: x[1], reverse=True)
-
-            # 找到当前hand的排名
-            for idx, (h, strength) in enumerate(sorted_hands):
-                if h == hand:
-                    # Percentile = 1 - (rank / total)
-                    # rank=0 (最强) → percentile=1.0
-                    # rank=total-1 (最弱) → percentile ≈ 0.0
-                    percentile = 1.0 - (idx / len(sorted_hands))
-                    return percentile
-
-            return 0.5  # 不应该到这里
+            # 翻前：基于preflop strength
+            my_strength = self._get_preflop_hand_strength(hand)
+            stronger = sum(
+                1 for h in all_hands
+                if self._get_preflop_hand_strength(h) > my_strength
+            )
+            return 1.0 - (stronger / len(all_hands))
 
         else:
-            # 翻后：基于当前equity排序
-            # 注意：这里需要equity计算，会在get_hand_percentile被调用时
-            # 由EquityEngine提供equity信息
-            # 为了避免循环依赖，这里使用简化版：基于hand type
+            # 翻后：基于当前成牌强度
+            # （真正的equity计算由EquityEngine完成，这里只用于range内部排序）
+            my_score = self._board_hand_score(hand, board)
+            if my_score is None:
+                return 0.0  # hand与board冲突
 
-            hand_equities = {}
-            for h in all_hands:
-                equity = self._estimate_hand_equity_on_board(h, board)
-                hand_equities[h] = equity
+            # 排除与board冲突的组合
+            valid_scores = [s for s in (self._board_hand_score(h, board) for h in all_hands)
+                            if s is not None]
+            if not valid_scores:
+                return 0.5
 
-            # 排序
-            sorted_hands = sorted(hand_equities.items(), key=lambda x: x[1], reverse=True)
-
-            # 找到当前hand的排名
-            for idx, (h, equity) in enumerate(sorted_hands):
-                if h == hand:
-                    percentile = 1.0 - (idx / len(sorted_hands))
-                    return percentile
-
-            return 0.5
+            stronger = sum(1 for s in valid_scores if s > my_score)
+            return 1.0 - (stronger / len(valid_scores))
 
     def _get_preflop_hand_strength(self, hand: Hand) -> float:
         """
@@ -294,15 +281,18 @@ class RangeEngine(IRangeEngine):
         Returns:
             0-1的strength评分
         """
+        # 按Hand对象缓存（避免重复的字符串转换，percentile计算的热点）
+        cached = self._hand_strength_memo.get(hand)
+        if cached is not None:
+            return cached
+
         # 获取hand的字符串表示
         hand_str = self._hand_to_str(hand)
 
-        # 从cache查找
-        if hand_str in self.preflop_hand_strength_cache:
-            return self.preflop_hand_strength_cache[hand_str]
-
-        # 如果不在cache中，返回默认值
-        return 0.5
+        # 从cache查找（不在表中返回默认值）
+        strength = self.preflop_hand_strength_cache.get(hand_str, 0.5)
+        self._hand_strength_memo[hand] = strength
+        return strength
 
     def _hand_to_str(self, hand: Hand) -> str:
         """
@@ -336,11 +326,11 @@ class RangeEngine(IRangeEngine):
             else:
                 return f"{rank1}{rank2}o"  # Offsuit
 
-    def _rank_value(self, rank: str) -> int:
-        """将rank转换为数值（用于排序）"""
+    def _rank_value(self, rank) -> int:
+        """将rank转换为数值（用于排序），兼容str和Rank枚举"""
         rank_order = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
                      '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-        return rank_order.get(rank, 0)
+        return rank_order.get(str(rank), 0)
 
     def _estimate_hand_equity_on_board(self, hand: Hand, board: List) -> float:
         """
@@ -356,30 +346,50 @@ class RangeEngine(IRangeEngine):
         Returns:
             估计的equity (0-1)
         """
-        # 简化实现：基于hand type
+        # 简化实现：基于当前成牌强度排序
         # 完整实现会调用EquityEngine，但那会导致循环依赖
         # 这里只用于range内部排序，不需要绝对准确
+        score = self._board_hand_score(hand, board)
+        if score is None:
+            return 0.50
 
-        from poker_core.evaluator import HandEvaluator as Evaluator
-        evaluator = Evaluator()
+        # HandStrength.to_score(): rank*10^12 + 牌面值，最大约 10*10^12
+        # 归一化到0-1（只用于排序，绝对值无意义）
+        return min(1.0, score / (11 * 10**12))
+
+    @staticmethod
+    def _board_hand_score(hand: Hand, board: List) -> Optional[int]:
+        """
+        计算hand在board上的成牌分数（越大越强）
+
+        与board冲突（共用牌）或无法评估时返回None。
+        """
+        from poker_core.evaluator import HandEvaluator
+
+        board_cards = list(board)
+        all_cards = list(hand.cards) + board_cards
+
+        # hand与board共用牌 → 该组合实际不可能存在
+        if len(set(all_cards)) != len(all_cards):
+            return None
 
         try:
-            # 评估当前hand strength
-            hand_rank = evaluator.evaluate(board, hand.cards)
-
-            # 将rank转换为大致的equity估计
-            # hand_rank范围：1 (Royal Flush) - 7462 (High Card)
-            # equity估计：rank越小（牌越强），equity越高
-            estimated_equity = 1.0 - (hand_rank / 7462.0)
-
-            # 调整：将equity缩放到合理范围 (0.15-0.95)
-            estimated_equity = 0.15 + estimated_equity * 0.80
-
-            return estimated_equity
-
-        except:
-            # 如果评估失败，返回中间值
-            return 0.50
+            if len(all_cards) == 5:
+                strength = HandEvaluator.evaluate(all_cards)
+            elif len(all_cards) == 7:
+                strength = HandEvaluator.evaluate_best_5(all_cards)
+            elif len(all_cards) == 6:
+                # turn: 从6张中取最佳5张
+                from itertools import combinations
+                strength = max(
+                    (HandEvaluator.evaluate(list(five)) for five in combinations(all_cards, 5)),
+                    key=lambda s: s.to_score()
+                )
+            else:
+                return None
+            return strength.to_score()
+        except (ValueError, KeyError):
+            return None
 
     def analyze_range_interaction(self, hero_range: Range, villain_range: Range,
                                   board: List) -> RangeAdvantage:
@@ -459,47 +469,27 @@ class RangeEngine(IRangeEngine):
         Returns:
             -1到1的nut advantage评分
         """
-        from poker_core.evaluator import HandEvaluator as Evaluator
-        evaluator = Evaluator()
-
         hero_hands = hero_range.to_hands()
         villain_hands = villain_range.to_hands()
 
-        # 找出所有可能的hands在当前board上的rank
-        hero_ranks = []
-        villain_ranks = []
+        # 找出所有可能的hands在当前board上的成牌分数（越大越强）
+        hero_scores = [s for s in (self._board_hand_score(h, board) for h in hero_hands)
+                       if s is not None]
+        villain_scores = [s for s in (self._board_hand_score(h, board) for h in villain_hands)
+                          if s is not None]
 
-        for hand in hero_hands:
-            try:
-                rank = evaluator.evaluate(board, hand.cards)
-                hero_ranks.append(rank)
-            except:
-                pass
-
-        for hand in villain_hands:
-            try:
-                rank = evaluator.evaluate(board, hand.cards)
-                villain_ranks.append(rank)
-            except:
-                pass
-
-        if not hero_ranks or not villain_ranks:
+        if not hero_scores or not villain_scores:
             return 0.0
 
-        # 找到最强的牌（rank最小）
-        hero_best = min(hero_ranks)
-        villain_best = min(villain_ranks)
-
-        # 计算top 10%的平均rank
-        hero_top_10 = sorted(hero_ranks)[:max(1, len(hero_ranks) // 10)]
-        villain_top_10 = sorted(villain_ranks)[:max(1, len(villain_ranks) // 10)]
+        # 计算top 10%的平均分数
+        hero_top_10 = sorted(hero_scores, reverse=True)[:max(1, len(hero_scores) // 10)]
+        villain_top_10 = sorted(villain_scores, reverse=True)[:max(1, len(villain_scores) // 10)]
 
         hero_top_avg = sum(hero_top_10) / len(hero_top_10)
         villain_top_avg = sum(villain_top_10) / len(villain_top_10)
 
-        # Nut advantage：比较top hands的质量
-        # rank越小越强，所以villain_top_avg - hero_top_avg > 0 表示hero更强
-        nut_diff = (villain_top_avg - hero_top_avg) / 7462.0  # 归一化
+        # Nut advantage：比较top hands的质量（分数越大越强）
+        nut_diff = (hero_top_avg - villain_top_avg) / (11 * 10**12)  # 归一化
 
         # Clamp to [-1, 1]
         nut_advantage = max(-1.0, min(1.0, nut_diff * 5.0))  # 放大差异
@@ -550,8 +540,11 @@ class RangeEngine(IRangeEngine):
         # Phase 1：使用GTO baseline
         # Phase 2：会根据villain_tendencies调整
 
-        # 获取GTO baseline range
-        gto_range = self.get_ideal_range(villain_position, action_history)
+        # 注意语义：action_history的最后一个动作是villain自己做的。
+        # villain的range = 做出该动作时面对的历史(去掉最后一项)对应的理想range。
+        # 例如villain open raise → 面对空历史 → open range
+        facing_history = list(action_history[:-1]) if action_history else []
+        gto_range = self.get_ideal_range(villain_position, facing_history)
 
         # Phase 2会根据player_type调整：
         # - LAG: 扩大range (+30-50%)

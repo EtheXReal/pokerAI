@@ -521,13 +521,9 @@ class TestEdgeCases:
         assert percentile == 1.0
 
     def test_invalid_hand(self):
-        """测试无效的hand"""
-        btn_range = self.engine.get_ideal_range(Position.BTN, [])
-        invalid_hand = Hand([])  # 空hand
-
-        # 应该不会崩溃，返回默认值
-        percentile = self.engine.get_hand_percentile(invalid_hand, btn_range)
-        assert percentile >= 0.0
+        """测试无效的hand：空hand在构造时就应该抛ValueError"""
+        with pytest.raises(ValueError):
+            Hand([])
 
 
 if __name__ == '__main__':

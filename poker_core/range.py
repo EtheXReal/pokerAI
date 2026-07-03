@@ -181,6 +181,17 @@ class Range:
         return Range(set(combos))
 
     @staticmethod
+    def full() -> Range:
+        """完整随机范围：全部1326种起手组合（如BB未被加注时的范围）"""
+        deck = create_deck()
+        combos = {
+            HandCombo(Hand([c1, c2]))
+            for i, c1 in enumerate(deck)
+            for c2 in deck[i + 1:]
+        }
+        return Range(combos)
+
+    @staticmethod
     def from_string(s: str) -> Range:
         """
         从字符串解析Range

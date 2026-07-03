@@ -133,10 +133,37 @@ class ActionParser:
                     player_id, flop_actions
                 )
 
+            # 面对翻牌圈下注的反应（近似fold_to_cbet：任何flop下注都计入）
+            result.fold_to_cbet = ActionParser._did_fold_to_bet(
+                player_id, flop_actions
+            )
+
         # 摊牌分析 (需要从外部传入)
         # result.went_to_showdown 和 won_at_showdown 需要由调用者填充
 
         return result
+
+    @staticmethod
+    def _did_fold_to_bet(
+        player_id: str,
+        actions: List[Tuple[str, 'ActionType', float]]
+    ) -> Optional[bool]:
+        """
+        该玩家在这条街是否面对下注并弃牌
+
+        Returns:
+            True: 面对下注弃牌
+            False: 面对下注但继续（call/raise）
+            None: 没有面对下注
+        """
+        faced_bet = False
+        for actor, action_type, amount in actions:
+            if actor != player_id and action_type in (
+                    ActionType.BET, ActionType.RAISE, ActionType.ALL_IN):
+                faced_bet = True
+            elif actor == player_id and faced_bet:
+                return action_type == ActionType.FOLD
+        return None
 
     @staticmethod
     def _analyze_preflop(

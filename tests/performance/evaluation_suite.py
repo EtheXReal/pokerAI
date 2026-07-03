@@ -37,7 +37,113 @@ from advisor.exploit import ExploitEngine
 
 from tests.performance.opponent_players import OpponentPlayer, create_opponent
 
-OPPONENT_STYLES = ['random', 'passive', 'aggressive', 'tight']
+OPPONENT_STYLES = ['random', 'passive', 'aggressive', 'tight', 'tag']
+
+
+class TagPlayer(Player):
+    """
+    会看牌的TAG规则对手（紧凶型）
+
+    与random系bot不同，这个对手根据真实牌力决策：
+    - 翻前：按牌力表开池/3bet/跟注，无limp
+    - 翻后：顶对+价值下注，听牌按赔率跟注，空气弃牌
+    比不看牌的随机bot强得多，作为有意义的基准陪练。
+    """
+
+    def __init__(self, name: str, seat: int, stack: float):
+        super().__init__(name, seat, stack)
+        import random as _random
+        self._rng = _random.Random(name)  # 独立随机流，不干扰全局seed
+        # 复用RangeEngine的169手强度表
+        from advisor.analysis.range_engine import RangeEngine
+        self._range_engine = RangeEngine()
+
+    def _preflop_strength(self, hand) -> float:
+        return self._range_engine._get_preflop_hand_strength(hand)
+
+    def _postflop_category(self, hand, board) -> str:
+        """'strong' / 'medium' / 'draw' / 'weak'"""
+        from poker_core.evaluator import HandEvaluator, HandRank
+        from advisor.analysis.range_engine import RangeEngine
+
+        cards = list(hand.cards) + list(board)
+        if len(cards) == 5:
+            strength = HandEvaluator.evaluate(cards)
+        elif len(cards) == 7:
+            strength = HandEvaluator.evaluate_best_5(cards)
+        else:  # turn: 6张取最优5张
+            from itertools import combinations
+            strength = max((HandEvaluator.evaluate(list(c)) for c in combinations(cards, 5)),
+                           key=lambda s: s.to_score())
+
+        board_top = max(int(c.rank) for c in board)
+        if strength.rank >= HandRank.TWO_PAIR:
+            return 'strong'
+        if strength.rank == HandRank.ONE_PAIR and strength.primary and strength.primary[0] >= board_top:
+            return 'strong'   # 顶对或超对
+        if RangeEngine._has_strong_draw(hand, list(board)):
+            return 'draw'
+        if strength.rank == HandRank.ONE_PAIR:
+            return 'medium'
+        return 'weak'
+
+    def decide(self, game_state: GameState) -> PlayerAction:
+        pot = game_state.pot
+        to_call = game_state.to_call
+        stack = game_state.hero_stack
+        r = self._rng.random()
+
+        if game_state.street == 'preflop':
+            s = self._preflop_strength(game_state.hand)
+            if to_call <= 0.01:
+                # BB无人加注：强牌加注，其余check
+                if s >= 0.70:
+                    return PlayerAction('raise', min(3.0, stack))
+                return PlayerAction('check', 0.0)
+            if to_call <= 0.75:
+                # BTN开池位（补0.5BB）：raise-or-fold
+                if s >= 0.48:
+                    return PlayerAction('raise', min(2.0, stack))
+                return PlayerAction('fold', 0.0)
+            # 面对raise/3bet
+            if s >= 0.85:
+                return PlayerAction('raise', min(to_call * 2.5, stack - to_call))
+            call_threshold = 0.55 if to_call <= 3.0 else 0.72
+            if s >= call_threshold and to_call < stack * 0.35:
+                return PlayerAction('call', 0.0)
+            return PlayerAction('fold', 0.0)
+
+        # ---------- 翻后 ----------
+        category = self._postflop_category(game_state.hand, game_state.board)
+
+        if to_call <= 0.01:
+            # 无人下注
+            if category == 'strong':
+                return PlayerAction('bet', min(round_amount(pot * 0.66), stack))
+            if category == 'medium' and r < 0.5:
+                return PlayerAction('bet', min(round_amount(pot * 0.5), stack))
+            if category == 'draw' and r < 0.4:
+                return PlayerAction('bet', min(round_amount(pot * 0.5), stack))  # 半bluff
+            if category == 'weak' and r < 0.10:
+                return PlayerAction('bet', min(round_amount(pot * 0.5), stack))  # 少量bluff
+            return PlayerAction('check', 0.0)
+
+        # 面对下注
+        pot_odds = to_call / (pot + to_call) if (pot + to_call) > 0 else 1.0
+        if category == 'strong':
+            if r < 0.35:
+                return PlayerAction('raise', min(round_amount(to_call * 2.5), stack - to_call))
+            return PlayerAction('call', 0.0)
+        if category == 'draw':
+            # 按赔率跟注（花听/两头顺听约35%胜率）
+            if pot_odds < 0.32 and to_call < stack * 0.4:
+                return PlayerAction('call', 0.0)
+            return PlayerAction('fold', 0.0)
+        if category == 'medium':
+            if pot_odds < 0.30:
+                return PlayerAction('call', 0.0)
+            return PlayerAction('fold', 0.0)
+        return PlayerAction('fold', 0.0)
 
 
 class AdvisorPlayer(Player):
@@ -105,6 +211,43 @@ class AdvisorPlayer(Player):
         return stats, classification.player_type
 
     @staticmethod
+    def _convert_sizing(game_state: GameState, action_type: str, amount: float) -> float:
+        """
+        把策略输出的sizing转换为poker_env的金额语义
+
+        poker_env: bet的amount是下注总额；raise的amount是超出call部分的增量。
+        标准sizing：翻前开池2.5BB、3bet/4bet≈3×对手注；翻后bet按pot比例、raise≈2.75×对手注。
+        """
+        stack = game_state.hero_stack
+        pot = game_state.pot
+        facing = game_state.facing_bet or 0.0
+        to_call = game_state.to_call or 0.0
+
+        if action_type == 'raise':
+            if game_state.street == 'preflop' and facing <= 1.01:
+                # 开池：raise-to ≈ 2.5BB → 增量2.0（在SB补0.5后）
+                actual = 2.0
+            elif game_state.street == 'preflop':
+                # 3bet/4bet: raise-to ≈ 3×对手加注 → 增量 = 2×facing
+                actual = 2.0 * facing
+            else:
+                # 翻后raise: raise-to ≈ 2.75×对手下注 → 增量 = 1.75×facing
+                actual = 1.75 * facing
+
+            max_raise = stack - to_call
+            actual = max(0.5, min(actual, max_raise))
+            if max_raise - actual < 1.0:  # 接近all-in直接推
+                actual = max_raise
+            return round_amount(actual)
+
+        # bet: amount是pot比例（策略sizing分布），默认0.66 pot
+        fraction = amount if 0 < amount <= 2.0 else 0.66
+        actual = max(0.5, min(pot * fraction, stack))
+        if stack - actual < 1.0:
+            actual = stack
+        return round_amount(actual)
+
+    @staticmethod
     def _normalize_action(action_str: str) -> str:
         """poker_env动作串带金额（'bet 7.7BB'/'raise to 4BB'）→ 取动作类型"""
         first = action_str.split()[0].lower() if action_str else ''
@@ -155,22 +298,8 @@ class AdvisorPlayer(Player):
             amount = selected_action.amount
 
             if action_type in ['bet', 'raise']:
-                if amount > 0:
-                    actual_amount = round_amount(game_state.pot * amount)
-                else:
-                    actual_amount = round_amount(game_state.pot * 0.66)
-
-                if action_type == 'raise':
-                    max_raise = game_state.hero_stack - game_state.to_call
-                    actual_amount = max(0.5, min(actual_amount, max_raise))
-                    if max_raise - actual_amount < 1.0:
-                        actual_amount = max_raise
-                else:
-                    actual_amount = max(0.5, min(actual_amount, game_state.hero_stack))
-                    if game_state.hero_stack - actual_amount < 1.0:
-                        actual_amount = game_state.hero_stack
-
-                return PlayerAction(action_type, round_amount(actual_amount))
+                actual_amount = self._convert_sizing(game_state, action_type, amount)
+                return PlayerAction(action_type, actual_amount)
             else:
                 return PlayerAction(action_type, 0.0)
 
@@ -200,28 +329,45 @@ class StyledOpponentPlayer(Player):
         return PlayerAction(action_type, amount)
 
 
+def _make_opponent(opponent_style: str, name: str, seat: int) -> Player:
+    if opponent_style == 'tag':
+        return TagPlayer(name, seat=seat, stack=100.0)
+    return StyledOpponentPlayer(
+        name, seat=seat, stack=100.0,
+        impl=create_opponent(opponent_style, name=name))
+
+
 def run_match(opponent_style: str, num_hands: int, seed: int,
-              use_exploit: bool = True, quiet: bool = False) -> dict:
+              use_exploit: bool = True, quiet: bool = False,
+              duplicate: bool = False) -> dict:
     """
     跑一场 AI vs 指定风格对手的比赛
+
+    duplicate=True 时启用对拆方差缩减：每手牌用同一seed跑两场（AI换边），
+    发牌运气在配对求和中抵消，只留下决策质量差异。
 
     Returns:
         统计字典：bb100/位置分解/标准误/分类结果等
     """
-    ai = AdvisorPlayer("AI", seat=0, stack=100.0, use_exploit=use_exploit)
     villain_name = f"{opponent_style.capitalize()}Bot"
-    opponent = StyledOpponentPlayer(
-        villain_name, seat=1, stack=100.0,
-        impl=create_opponent(opponent_style, name=villain_name))
-    ai.villain_id = villain_name
-
-    players = [ai, opponent]
     config = GameConfig(num_players=2, starting_stack=100.0,
                         small_blind=0.5, big_blind=1.0,
                         verbose=False, debug=False)
-    game = PokerGame(players, config)
 
-    profits = []
+    # 游戏1: AI在seat0
+    ai = AdvisorPlayer("AI", seat=0, stack=100.0, use_exploit=use_exploit)
+    ai.villain_id = villain_name
+    players1 = [ai, _make_opponent(opponent_style, villain_name, seat=1)]
+    game1 = PokerGame(players1, config)
+
+    # 游戏2（duplicate）: AI在seat1，同seed拿到对面的牌
+    if duplicate:
+        ai2 = AdvisorPlayer("AI", seat=1, stack=100.0, use_exploit=use_exploit)
+        ai2.villain_id = villain_name
+        players2 = [_make_opponent(opponent_style, villain_name, seat=0), ai2]
+        game2 = PokerGame(players2, config)
+
+    profits = []       # 每手（或每配对）AI盈亏
     btn_profits = []
     bb_profits = []
     errors = 0
@@ -229,13 +375,23 @@ def run_match(opponent_style: str, num_hands: int, seed: int,
     start = time.time()
     for i in range(num_hands):
         btn_seat = i % 2
+        hand_seed = seed * 100000 + i
         try:
-            result = game.play_hand(hand_num=i, btn_seat=btn_seat, seed=seed * 100000 + i)
-            profit = result.player_profits[0]
-            profits.append(profit)
-            (btn_profits if btn_seat == 0 else bb_profits).append(profit)
-            # AI观察这手牌，更新对手模型
-            ai.observe_hand(result, players)
+            r1 = game1.play_hand(hand_num=i, btn_seat=btn_seat, seed=hand_seed)
+            p1 = r1.player_profits[0]
+            ai.observe_hand(r1, players1)
+
+            if duplicate:
+                r2 = game2.play_hand(hand_num=i, btn_seat=btn_seat, seed=hand_seed)
+                p2 = r2.player_profits[1]
+                ai2.observe_hand(r2, players2)
+                # 配对求和：同一副牌AI两边各打一次
+                profits.append(p1 + p2)
+                (btn_profits if btn_seat == 0 else bb_profits).append(p1)
+                (bb_profits if btn_seat == 0 else btn_profits).append(p2)
+            else:
+                profits.append(p1)
+                (btn_profits if btn_seat == 0 else bb_profits).append(p1)
         except Exception as e:
             errors += 1
             if errors <= 3:
@@ -244,12 +400,13 @@ def run_match(opponent_style: str, num_hands: int, seed: int,
 
     n = len(profits)
     total = sum(profits)
-    bb100 = total / n * 100 if n else 0.0
-    # 标准误（BB/100口径）
+    hands_played = n * (2 if duplicate else 1)
+    bb100 = total / hands_played * 100 if n else 0.0
+    # 标准误（BB/100口径；duplicate下按配对样本计算，再折算到单手口径）
     if n > 1:
         mean = total / n
         var = sum((p - mean) ** 2 for p in profits) / (n - 1)
-        stderr_bb100 = math.sqrt(var / n) * 100
+        stderr_bb100 = math.sqrt(var / n) * 100 / (2 if duplicate else 1)
     else:
         stderr_bb100 = 0.0
 
@@ -260,7 +417,8 @@ def run_match(opponent_style: str, num_hands: int, seed: int,
     report = {
         'opponent': opponent_style,
         'exploit': use_exploit,
-        'hands': n,
+        'hands': hands_played,
+        'duplicate': duplicate,
         'errors': errors,
         'bb100': bb100,
         'stderr_bb100': stderr_bb100,
@@ -301,6 +459,8 @@ def main():
     parser.add_argument('--no-exploit', action='store_true', help='关闭exploit层（纯GTO）')
     parser.add_argument('--compare', action='store_true',
                         help='每个对手跑exploit开/关两遍并对比')
+    parser.add_argument('--duplicate', action='store_true',
+                        help='对拆方差缩减：每手同一副牌AI两边各打一次')
     args = parser.parse_args()
 
     styles = OPPONENT_STYLES if args.opponent == 'all' else [args.opponent]
@@ -312,15 +472,18 @@ def main():
     all_reports = []
     for style in styles:
         if args.compare:
-            r_gto = run_match(style, args.hands, args.seed, use_exploit=False)
-            r_exp = run_match(style, args.hands, args.seed, use_exploit=True)
+            r_gto = run_match(style, args.hands, args.seed, use_exploit=False,
+                              duplicate=args.duplicate)
+            r_exp = run_match(style, args.hands, args.seed, use_exploit=True,
+                              duplicate=args.duplicate)
             all_reports.extend([r_gto, r_exp])
             diff = r_exp['bb100'] - r_gto['bb100']
             print(f"  >>> exploit增益: {diff:+.1f} BB/100")
         else:
             all_reports.append(
                 run_match(style, args.hands, args.seed,
-                          use_exploit=not args.no_exploit))
+                          use_exploit=not args.no_exploit,
+                          duplicate=args.duplicate))
 
     # 汇总表
     print('\n' + '=' * 72)

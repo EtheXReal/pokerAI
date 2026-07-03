@@ -25,6 +25,7 @@ from advisor.core.data_structures import (
     BoardAnalysis,
 )
 from poker_core.cards import Hand
+from poker_core.position import Position
 
 
 class GTOStrategy(IStrategy):
@@ -122,18 +123,25 @@ class GTOStrategy(IStrategy):
         Returns:
             StrategyDecision
         """
-        # Range-based decision
-        if percentile >= self.raise_threshold:
-            # Top 50% of range → raise
+        # BB且无人加注：可以免费check，绝不fold
+        # （hero range是完整随机范围，只用顶部加注取价值）
+        if ctx.position == Position.BB:
+            if percentile >= 0.80:
+                action_dist = {'raise': 1.0, 'check': 0.0}
+                sizing_dist = {self.default_raise_size: 1.0}
+                reasoning = f"BB vs limp: percentile {percentile:.2f} → raise for value"
+            else:
+                action_dist = {'raise': 0.0, 'check': 1.0}
+                sizing_dist = {}
+                reasoning = f"BB vs limp: percentile {percentile:.2f} → free check"
+
+        # 其他位置首入：raise-or-fold，不limp
+        # （limp垃圾牌是v1时代验证过的系统性漏损, 见docs/archive/32HANDS_CRITICAL_PROBLEMS.md）
+        elif percentile >= self.call_threshold:
+            # 在开池范围内 → raise（范围表已经筛过，开整个范围）
             action_dist = {'raise': 1.0, 'call': 0.0, 'fold': 0.0}
             sizing_dist = {self.default_raise_size: 1.0}
-            reasoning = f"Preflop open: hand percentile {percentile:.2f} >= {self.raise_threshold} → raise"
-
-        elif percentile >= self.call_threshold:
-            # Middle range → mixed strategy (mostly call, some raise for balance)
-            action_dist = {'raise': 0.20, 'call': 0.70, 'fold': 0.10}
-            sizing_dist = {self.default_raise_size: 1.0}
-            reasoning = f"Preflop open: hand percentile {percentile:.2f} in middle range → mixed (mostly call)"
+            reasoning = f"Preflop open: hand percentile {percentile:.2f} >= {self.call_threshold} → raise (no limp)"
 
         else:
             # Bottom of range → fold
@@ -528,6 +536,11 @@ class GTOStrategy(IStrategy):
             Bluff频率
         """
         base_freq = self.bluff_frequency
+
+        # 街道衰减：越到后街，对手continue range越强，空气bluff期望越差
+        # （防止弱牌三条街连续开火）
+        street_decay = {'flop': 1.0, 'turn': 0.55, 'river': 0.35}
+        base_freq *= street_decay.get(ctx.street, 1.0)
 
         # IP更容易bluff
         if ctx.is_in_position:

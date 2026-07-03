@@ -210,6 +210,10 @@ class DecisionIntegrator(IDecisionIntegrator):
             position=position,
             action_history=action_history
         )
+        # 空范围兜底（如BB未被加注时没有open range）：
+        # 此时hero的范围是完整随机范围，绝不能让percentile退化为0.5中间值
+        if len(hero_range) == 0:
+            hero_range = Range.full()
 
         # 获取villain range：优先根据其翻前行动定基准范围
         villain_position = self._estimate_villain_position(game_state)
@@ -443,6 +447,11 @@ class DecisionIntegrator(IDecisionIntegrator):
             return None
 
         if stats is not None:
+            # fold_to_cbet无观测样本时OpponentStats默认0.0，会被误读为"从不弃牌"
+            # （最大粘性）→ 无样本时用0.5中性值
+            faced_cbet_samples = getattr(stats, '_faced_cbet_count', 0)
+            fold_to_cbet = stats.fold_to_cbet_flop if faced_cbet_samples > 0 else 0.5
+
             return PlayerProfile(
                 player_id=stats.player_id,
                 player_type=opponent_type or PlayerType.UNKNOWN,
@@ -454,7 +463,7 @@ class DecisionIntegrator(IDecisionIntegrator):
                 cbet_freq_flop=stats.cbet_flop,
                 cbet_freq_turn=stats.cbet_turn,
                 cbet_freq_river=stats.cbet_river,
-                fold_to_cbet_flop=stats.fold_to_cbet_flop,
+                fold_to_cbet_flop=fold_to_cbet,
                 fold_to_cbet_turn=stats.fold_to_cbet_turn,
                 three_bet_freq=stats.three_bet_pct,
                 fold_to_3bet=stats.fold_to_3bet,
@@ -463,12 +472,14 @@ class DecisionIntegrator(IDecisionIntegrator):
                 hands_observed=stats.hands_played,
             )
 
-        # 只有类型没有统计：用类型的典型数值，样本量设为可用最低档
+        # 只有类型没有统计：用类型的典型数值。
+        # hands_observed=0 表示"无实测统计"（exploit层的统计门槛按此豁免），
+        # sample_size=30 让exploit权重达到可用档位（信任显式传入的类型）
         return PlayerProfile(
             player_id='unknown',
             player_type=opponent_type,
             sample_size=30,
-            hands_observed=30,
+            hands_observed=0,
         )
 
     def _extract_villain_tendencies(self, game_state: any) -> dict:
@@ -509,6 +520,21 @@ class DecisionIntegrator(IDecisionIntegrator):
                     # 尝试提取金额（如果有）
                     amount = game_state.facing_bet if game_state.facing_bet else 0
                     action_history.append(Action(action='raise' if 'raise' in action_str else 'bet', amount=amount))
+            return action_history
+
+        # action_history未提供时，从结构化行动记录合成翻前加注序列
+        # （get_ideal_range按翻前raise次数选择 open/3bet/4bet 范围）
+        villain_actions = getattr(game_state, 'villain_actions', None) or []
+        hero_actions = getattr(game_state, 'hero_actions', None) or []
+        preflop_raises = sum(
+            1 for a in villain_actions + hero_actions
+            if a.get('street') == 'preflop' and a.get('action') in ('raise', 'bet')
+        )
+        # 3+次加注（facing 4bet+）沿用4bet-continue范围（get_ideal_range只识别到2次）
+        preflop_raises = min(preflop_raises, 2)
+        amount = game_state.facing_bet if game_state.facing_bet else 0
+        for _ in range(preflop_raises):
+            action_history.append(Action(action='raise', amount=amount))
         return action_history
 
     def _convert_position(self, position_str: str) -> Position:

@@ -54,6 +54,9 @@ python tests/performance/evaluation_suite.py --opponent random --hands 256
 
 # 多人边池集成测试
 python tests/performance/multiplayer_sidepot_test.py
+
+# 🃏 和AI单挑（本地网页，详见 webplay/README.md）
+python webplay/server.py   # 然后打开 http://127.0.0.1:8000
 ```
 
 ## 决策流程

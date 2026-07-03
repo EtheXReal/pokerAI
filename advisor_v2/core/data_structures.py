@@ -8,17 +8,67 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Any
 from enum import Enum
 
-# 复用advisor的基础类型
-from advisor.strategy_engine.gto_baseline import Position
-from advisor.range_engine.cards import Hand, Card
-from advisor.range_engine.range import Range
+# 基础类型来自poker_core
+from poker_core.position import Position
+from poker_core.cards import Hand, Card, Board
+from poker_core.range import Range
+from advisor_v2.modeling import OpponentStats, PlayerType, classify_player
 
-# Action需要定义（advisor中没有统一的Action类）
+# Action需要定义（poker_core中没有统一的Action类）
 @dataclass
 class Action:
     """行动类"""
     action: str  # 'fold', 'call', 'raise', 'bet', 'check'
     amount: float = 0.0
+
+
+@dataclass
+class GameState:
+    """
+    游戏状态快照 - 决策入口的输入
+
+    包含做决策所需的所有信息。
+    （原位于 advisor/strategy_engine/advisor.py，v1退役后迁移至此）
+    """
+    # 必填字段（没有默认值）
+    street: str  # 'preflop', 'flop', 'turn', 'river'
+    position: str  # 'UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'
+    is_in_position: bool
+    hero_hand: Hand
+    pot_size: float  # BB
+    effective_stack: float  # BB
+    hero_stack: float  # BB
+
+    # 可选字段（有默认值）
+    board: Optional[Board] = None
+    action_history: Optional[List[str]] = None  # ['open', '3bet', 'call', ...]
+
+    # 当前面对的情况
+    facing_bet: Optional[float] = None  # 对手下注大小 (BB)
+    bet_to_call: Optional[float] = None  # 需要跟注的金额 (BB)
+    min_raise: Optional[float] = None  # 最小加注 (BB)
+
+    # 对手信息
+    num_opponents: int = 1
+    opponent_stats: Optional[OpponentStats] = None
+    opponent_type: Optional[PlayerType] = None
+
+    # 其他
+    tournament: bool = False  # 是否锦标赛
+    bubble: bool = False  # 是否泡沫阶段
+
+    def __post_init__(self):
+        """初始化后处理"""
+        if self.action_history is None:
+            self.action_history = []
+
+        # 计算SPR
+        self.spr = self.effective_stack / self.pot_size if self.pot_size > 0 else 999
+
+        # 如果没有对手类型，使用默认
+        if self.opponent_type is None and self.opponent_stats is not None:
+            result = classify_player(self.opponent_stats)
+            self.opponent_type = result.player_type
 
 
 # ============================================================================

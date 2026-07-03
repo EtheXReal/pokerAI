@@ -3,9 +3,8 @@ name = "pokerai"
 version = "0.2.0"
 description = "德州扑克 AI 决策系统：range-based GTO + 对手建模（个人研究项目）"
 requires-python = ">=3.10"
-dependencies = [
-    "treys>=0.1.8",
-]
+# 纯Python实现，无第三方运行时依赖
+dependencies = []
 
 [project.optional-dependencies]
 dev = [

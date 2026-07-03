@@ -6,7 +6,8 @@
       "Bash(find:*)",
       "Bash(timeout 30 bash:*)",
       "Bash(tee:*)",
-      "Bash(c:/Users/Administrator/Desktop/AIc/poj/tests/performance/__init__.py)"
+      "Bash(c:/Users/Administrator/Desktop/AIc/poj/tests/performance/__init__.py)",
+      "Bash(xargs wc -l)"
     ],
     "deny": [],
     "ask": []

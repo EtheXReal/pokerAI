@@ -11,12 +11,12 @@
 
 ```
 Phase 1: 游戏引擎 (poker_env)         ████████████████████  100%  ✅
-Phase 2: AI决策系统 (advisor)         ████████████░░░░░░░░   60%  ⏳
+Phase 2: AI决策系统 (advisor)         ████████████████░░░░   80%  ⏳
   2.1 范围/Equity/牌面分析            ████████████████████  100%  ✅
-  2.2 对手建模                        ████████████████░░░░   80%  ✅代码完成，未接入
+  2.2 对手建模                        ████████████████████  100%  ✅已接入决策链
   2.3 GTO策略 + 决策编排              ████████████████░░░░   80%  ✅基线可用
-  2.4 Exploit混合层                   ░░░░░░░░░░░░░░░░░░░░    0%
-  2.5 系统性评估                      ████░░░░░░░░░░░░░░░░   20%  仅vs Random
+  2.4 Exploit混合层                   ████████████████░░░░   80%  ✅已实现并验证
+  2.5 系统性评估                      ████████████░░░░░░░░   60%  ✅4风格×开关对比
 Phase 3: 数据捕获和UI（所有者自行开发）░░░░░░░░░░░░░░░░░░░░    0%
 ```
 
@@ -32,22 +32,30 @@ Phase 3: 数据捕获和UI（所有者自行开发）░░░░░░░░░
 ### 已完成
 
 - **2.1 分析层**：RangeEngine（范围表 + hand percentile）、EquityEngine（Monte Carlo + LRU 缓存）、BoardAnalyzer
-- **2.2 对手建模**（代码完成，未接入决策链）：20+ 统计指标、9 种玩家分类、exploit 策略库、SQLite 持久化 —— 位于 `advisor/modeling/`
+- **2.2 对手建模**（已接入决策链）：20+ 统计指标、9 种玩家分类、exploit 策略库、SQLite 持久化 —— `advisor/modeling/`
 - **2.3 GTO 基线**：GTOStrategy（range percentile 决策）+ DecisionIntegrator（编排 + DecisionTrace）
-- **基准成绩**（2026-07，512 手 vs Random，seed=42）：**+191 BB/100**（BTN +265 / BB +118）
+- **2.4 Exploit 层**：ExploitEngine（按对手类型的动作空间调整）+ BalanceCalculator（GTO-Exploit 按样本量加权），管线：对局 → StatsTracker → PlayerClassifier → ExploitEngine
+- **2.5 评估协议**：`tests/performance/evaluation_suite.py`（多风格对手 × exploit 开/关对比、位置分解、标准误）
+
+### 基准成绩（2026-07-03，512手/风格，seed=42，exploit开/关对比）
+
+| 对手风格 | 纯GTO | GTO+Exploit | exploit增益 | 对手被分类为 |
+|---------|-------|-------------|------------|-------------|
+| random | +40.1 | **+61.8** | +21.6 | fish (0.84) |
+| passive | +55.1 | **+65.0** | +9.8 | calling_station (0.97) |
+| aggressive | +96.0 | **+108.6** | +12.6 | lag (0.77) |
+| tight | +60.7 | **+72.8** | +12.0 | lag (0.92) |
+
+（单位 BB/100；单场增益在 1 个标准误内，但 4/4 风格方向一致为正，平均 +14）
 
 ### 下一步（按优先级）
 
-1. **接入对手建模 → Exploit 层**（原 Phase 2.2/2.3 的断点，最高价值）
-   - 对战循环中用 `StatsTracker` 实时累积对手统计
-   - `PlayerClassifier` 分类结果传入 `GameState.opponent_type`
-   - 实现 `advisor/exploit/`：根据对手类型调整 GTOStrategy 输出（混合权重）
-2. **系统性评估协议**
-   - vs 多种风格对手（tight/aggressive/passive/calling station）各 1000+ 手
-   - 位置分解 + 置信区间，固定 seed 保证可复现
-   - 目标：vs Random +60、vs Fish +45、vs TAG ≥0（BB/100）
-3. **翻后范围动态更新**（根据行动序列缩小范围，提高翻后 percentile 精度）
+1. **翻后范围动态更新**（根据行动序列缩小范围，提高翻后 percentile 精度）
+2. **评估协议加强**：更大样本（4096+ 手）、对拆型方差缩减（同副牌互换座位）、
+   增加 vs TAG 型（会看牌的规则对手）
+3. **GTOStrategy 精细化**：sizing 分层（value/bluff 不同尺度）、多街规划
 4. **多人桌（3-5人）决策支持**（当前决策链主要在 2 人桌验证）
+5. **CLI 复盘工具**：手动输入局面，查看 DecisionTrace 决策推理（Phase 2 调试工具）
 
 ## Phase 3: 数据捕获和UI（项目所有者自行开发）
 

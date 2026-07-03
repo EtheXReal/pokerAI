@@ -45,7 +45,8 @@ class DecisionIntegrator(IDecisionIntegrator):
         range_engine: IRangeEngine,
         equity_engine: Optional[IEquityEngine] = None,
         board_analyzer: Optional[IBoardAnalyzer] = None,
-        strategy: Optional[IStrategy] = None
+        strategy: Optional[IStrategy] = None,
+        exploit_engine: Optional['IExploitEngine'] = None
     ):
         """
         初始化DecisionIntegrator
@@ -55,11 +56,13 @@ class DecisionIntegrator(IDecisionIntegrator):
             equity_engine: EquityEngine（翻后需要）
             board_analyzer: BoardAnalyzer（翻后需要）
             strategy: Strategy（默认GTOStrategy）
+            exploit_engine: ExploitEngine（可选；提供且GameState带对手信息时启用exploit调整）
         """
         self.range_engine = range_engine
         self.equity_engine = equity_engine
         self.board_analyzer = board_analyzer
         self.strategy = strategy
+        self.exploit_engine = exploit_engine
 
         # 如果没有提供strategy，使用默认GTOStrategy
         if self.strategy is None:
@@ -111,10 +114,44 @@ class DecisionIntegrator(IDecisionIntegrator):
         # 调用strategy决策
         gto_decision = self.strategy.decide(ctx)
 
+        # 2.5 Exploit阶段（有exploit_engine且GameState带对手信息时）
+        exploit_decision = None
+        final_decision = gto_decision
+        exploit_meta = {}
+
+        if self.exploit_engine is not None:
+            villain_profile = self._build_villain_profile(game_state)
+            if villain_profile is not None:
+                adjustment = self.exploit_engine.calculate_adjustment(
+                    villain_profile, ctx, gto_decision
+                )
+                if adjustment.adjustments and adjustment.exploit_weight > 0:
+                    adjusted_dist = adjustment.apply_to_frequencies(
+                        gto_decision.action_distribution
+                    )
+                    exploit_decision = StrategyDecision(
+                        action_distribution=adjusted_dist,
+                        sizing_distribution=dict(gto_decision.sizing_distribution),
+                        reasoning=adjustment.reasoning,
+                        confidence=adjustment.confidence,
+                        key_factors={
+                            **gto_decision.key_factors,
+                            'exploit_weight': adjustment.exploit_weight,
+                            'exploit_adjustments': dict(adjustment.adjustments),
+                            'villain_type': villain_profile.player_type.value,
+                        },
+                    )
+                    final_decision = exploit_decision
+                exploit_meta = {
+                    'villain_type': villain_profile.player_type.value,
+                    'exploit_weight': adjustment.exploit_weight,
+                    'exploit_reasoning': adjustment.reasoning,
+                }
+
         strategy_time = (time.time() - strategy_start) * 1000
 
         # 3. 选择最终action
-        selected_action = self.select_action(gto_decision)
+        selected_action = self.select_action(final_decision)
 
         total_time = (time.time() - start_time) * 1000
 
@@ -129,7 +166,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             range_advantage=range_advantage,
             board_analysis=board_analysis,
             gto_decision=gto_decision,
-            final_decision=gto_decision,  # Phase 1只有GTO
+            exploit_decision=exploit_decision,
+            final_decision=final_decision,
             selected_action=selected_action,
             analysis_time_ms=analysis_time,
             strategy_time_ms=strategy_time,
@@ -137,7 +175,8 @@ class DecisionIntegrator(IDecisionIntegrator):
             metadata={
                 'street': game_state.street,
                 'position': str(game_state.position),
-                'strategy': self.strategy.get_name()
+                'strategy': self.strategy.get_name(),
+                **exploit_meta,
             }
         )
 
@@ -293,7 +332,7 @@ class DecisionIntegrator(IDecisionIntegrator):
             hero_range=hero_range,
             villain_range=villain_range,
             villain_position=villain_position,
-            villain_tendencies={},  # TODO: Phase 2集成OpponentModel
+            villain_tendencies=self._extract_villain_tendencies(game_state),
             equity_info=equity_info,
             range_advantage=range_advantage,
             board_analysis=board_analysis,
@@ -334,6 +373,65 @@ class DecisionIntegrator(IDecisionIntegrator):
                 amount = 1.0
 
         return Action(action=selected_action_type, amount=amount)
+
+    def _build_villain_profile(self, game_state: any) -> Optional['PlayerProfile']:
+        """
+        从GameState的对手信息构建PlayerProfile
+
+        需要opponent_type或opponent_stats至少一项；都没有则返回None（不exploit）。
+        """
+        from advisor.core.data_structures import PlayerProfile
+        from advisor.modeling import PlayerType
+
+        opponent_type = getattr(game_state, 'opponent_type', None)
+        stats = getattr(game_state, 'opponent_stats', None)
+
+        if opponent_type is None and stats is None:
+            return None
+
+        if stats is not None:
+            return PlayerProfile(
+                player_id=stats.player_id,
+                player_type=opponent_type or PlayerType.UNKNOWN,
+                vpip=stats.vpip,
+                pfr=stats.pfr,
+                af=stats.af,
+                wtsd=stats.wtsd,
+                w_sd=stats.w_sd,
+                cbet_freq_flop=stats.cbet_flop,
+                cbet_freq_turn=stats.cbet_turn,
+                cbet_freq_river=stats.cbet_river,
+                fold_to_cbet_flop=stats.fold_to_cbet_flop,
+                fold_to_cbet_turn=stats.fold_to_cbet_turn,
+                three_bet_freq=stats.three_bet_pct,
+                fold_to_3bet=stats.fold_to_3bet,
+                four_bet_freq=stats.four_bet_pct,
+                sample_size=stats.hands_played,
+                hands_observed=stats.hands_played,
+            )
+
+        # 只有类型没有统计：用类型的典型数值，样本量设为可用最低档
+        return PlayerProfile(
+            player_id='unknown',
+            player_type=opponent_type,
+            sample_size=30,
+            hands_observed=30,
+        )
+
+    def _extract_villain_tendencies(self, game_state: any) -> dict:
+        """从opponent_stats提取关键统计传给StrategyContext"""
+        stats = getattr(game_state, 'opponent_stats', None)
+        if stats is None:
+            return {}
+        return {
+            'vpip': stats.vpip,
+            'pfr': stats.pfr,
+            'af': stats.af,
+            'fold_to_cbet_flop': stats.fold_to_cbet_flop,
+            'three_bet_pct': stats.three_bet_pct,
+            'fold_to_3bet': stats.fold_to_3bet,
+            'hands_played': stats.hands_played,
+        }
 
     def _convert_action_history(self, game_state: any) -> List[Action]:
         """

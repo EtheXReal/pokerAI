@@ -74,7 +74,7 @@ class AdvisorV2Player(Player):
 
             # 使用DecisionIntegrator决策
             trace = self.integrator.decide(advisor_game_state)
-            selected_action = self.integrator.select_action(trace.gto_decision)
+            selected_action = trace.selected_action  # 从final_decision采样，不要重复采样gto
 
             action_type = selected_action.action
             amount = selected_action.amount

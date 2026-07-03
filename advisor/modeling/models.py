@@ -189,17 +189,23 @@ def classify_action(action_str: str) -> ActionType:
     Returns:
         ActionType枚举
     """
+    # 注意：poker_env的动作字符串带金额，如 'call 0.50BB', 'bet 7.71BB',
+    # 'raise to 4.13BB', 'bet 26.34BB (all-in)' → 必须用前缀匹配
     action_lower = action_str.lower()
 
-    if action_lower == 'fold':
+    if action_lower.startswith('fold'):
         return ActionType.FOLD
-    elif action_lower == 'check' or action_lower == 'call' and action_str == 'call':
-        # 需要根据上下文判断是check还是call
+    elif action_lower.startswith('check'):
+        # check是免费动作：不计VPIP，也不进AF的被动分母
+        return ActionType.CHECK
+    elif action_lower.startswith('call'):
         return ActionType.CALL
-    elif action_lower.startswith('r') or action_lower in ['bet', 'raise']:
-        return ActionType.RAISE
-    elif action_lower == 'allin':
+    elif action_lower.startswith('bet'):
+        return ActionType.BET
+    elif action_lower.startswith(('allin', 'all_in', 'all-in')):
         return ActionType.ALL_IN
+    elif action_lower.startswith('r'):  # 'raise', 'raise to X', 'r33', 'r66', 'r100'
+        return ActionType.RAISE
     else:
         return ActionType.CALL  # 默认
 
